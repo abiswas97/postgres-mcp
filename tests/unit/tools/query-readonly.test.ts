@@ -2,23 +2,45 @@ import { describe, test, expect, beforeEach, afterEach } from '@jest/globals';
 import { cleanupDatabase } from '../../helpers/cleanup';
 
 // Mock kysely sql for READ_ONLY testing
-jest.mock('kysely', () => ({
-  sql: {
-    raw: jest.fn((query: string) => ({
-      execute: jest.fn(() => {
-        if (query.includes('ERROR')) {
-          return Promise.reject(new Error('Mocked SQL error'));
-        }
-        if (query.toUpperCase().includes('SELECT') || query.toUpperCase().includes('WITH') || query.toUpperCase().includes('EXPLAIN')) {
-          return Promise.resolve({ rows: [{ id: 1, name: 'test' }] });
-        }
-        return Promise.resolve({ numAffectedRows: 1 });
-      })
-    }))
-  },
-  Kysely: jest.fn(),
-  PostgresDialect: jest.fn()
-}));
+jest.mock('kysely', () => {
+  const createMockExecutable = (query: string) => ({
+    execute: jest.fn(() => {
+      if (query.includes('ERROR')) {
+        return Promise.reject(new Error('Mocked SQL error'));
+      }
+      const upperQuery = query.toUpperCase();
+      const trimmedUpper = upperQuery.trim();
+      if (trimmedUpper.startsWith('SELECT') || trimmedUpper.startsWith('WITH') || trimmedUpper.startsWith('EXPLAIN') || trimmedUpper.startsWith('SHOW') || trimmedUpper.startsWith('VALUES') || trimmedUpper.startsWith('TABLE')) {
+        return Promise.resolve({ rows: [{ id: 1, name: 'test' }] });
+      }
+      return Promise.resolve({ numAffectedRows: 1 });
+    })
+  });
+
+  // Mock sql template tag function
+  const sqlTemplateFn: any = (strings: TemplateStringsArray | string, ...values: any[]) => {
+    // Handle both template tag usage and property access
+    if (typeof strings === 'string') {
+      // This is sql.raw() or similar
+      return createMockExecutable(strings);
+    }
+
+    // This is sql`...` template tag usage
+    const query = strings.reduce((acc, str, i) => {
+      return acc + str + (values[i] !== undefined ? String(values[i]) : '');
+    }, '');
+    return createMockExecutable(query);
+  };
+
+  // Add raw method
+  sqlTemplateFn.raw = jest.fn((query: string) => createMockExecutable(query));
+
+  return {
+    sql: sqlTemplateFn,
+    Kysely: jest.fn(),
+    PostgresDialect: jest.fn()
+  };
+});
 
 // Mock database module
 jest.mock('../../../src/db', () => ({
