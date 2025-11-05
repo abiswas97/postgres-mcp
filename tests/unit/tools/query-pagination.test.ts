@@ -2,35 +2,56 @@ import { describe, test, expect, beforeAll, afterEach } from '@jest/globals';
 import { cleanupDatabase } from '../../helpers/cleanup';
 
 // Mock kysely sql for pagination testing
-jest.mock('kysely', () => ({
-  sql: {
-    raw: jest.fn((query: string) => ({
-      execute: jest.fn(() => {
-        if (query.includes('ERROR')) {
-          return Promise.reject(new Error('Mocked SQL error'));
-        }
-        
-        // Simulate different result sizes based on LIMIT
-        const limitMatch = query.match(/LIMIT (\d+)/i);
-        const limit = limitMatch ? parseInt(limitMatch[1], 10) : 100;
-        
-        // Generate mock rows based on limit
-        const rows = Array.from({ length: limit }, (_, i) => ({
-          id: i + 1,
-          name: `User ${i + 1}`,
-          email: `user${i + 1}@example.com`
-        }));
-        
-        if (query.toUpperCase().includes('SELECT')) {
-          return Promise.resolve({ rows });
-        }
-        return Promise.resolve({ numAffectedRows: 1 });
-      })
-    }))
-  },
-  Kysely: jest.fn(),
-  PostgresDialect: jest.fn()
-}));
+jest.mock('kysely', () => {
+  const createMockExecutable = (query: string) => ({
+    execute: jest.fn(() => {
+      if (query.includes('ERROR')) {
+        return Promise.reject(new Error('Mocked SQL error'));
+      }
+
+      // Simulate different result sizes based on LIMIT
+      const limitMatch = query.match(/LIMIT (\d+)/i);
+      const limit = limitMatch ? parseInt(limitMatch[1], 10) : 100;
+
+      // Generate mock rows based on limit
+      const rows = Array.from({ length: limit }, (_, i) => ({
+        id: i + 1,
+        name: `User ${i + 1}`,
+        email: `user${i + 1}@example.com`
+      }));
+
+      const trimmedUpper = query.toUpperCase().trim();
+      if (trimmedUpper.startsWith('SELECT') || trimmedUpper.startsWith('WITH') || trimmedUpper.startsWith('EXPLAIN') || trimmedUpper.startsWith('SHOW') || trimmedUpper.startsWith('VALUES') || trimmedUpper.startsWith('TABLE')) {
+        return Promise.resolve({ rows });
+      }
+      return Promise.resolve({ numAffectedRows: 1 });
+    })
+  });
+
+  // Mock sql template tag function
+  const sqlTemplateFn: any = (strings: TemplateStringsArray | string, ...values: any[]) => {
+    // Handle both template tag usage and property access
+    if (typeof strings === 'string') {
+      // This is sql.raw() or similar
+      return createMockExecutable(strings);
+    }
+
+    // This is sql`...` template tag usage
+    const query = strings.reduce((acc, str, i) => {
+      return acc + str + (values[i] !== undefined ? String(values[i]) : '');
+    }, '');
+    return createMockExecutable(query);
+  };
+
+  // Add raw method
+  sqlTemplateFn.raw = jest.fn((query: string) => createMockExecutable(query));
+
+  return {
+    sql: sqlTemplateFn,
+    Kysely: jest.fn(),
+    PostgresDialect: jest.fn()
+  };
+});
 
 // Mock database module
 jest.mock('../../../src/db', () => ({

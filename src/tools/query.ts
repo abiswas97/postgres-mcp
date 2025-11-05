@@ -54,6 +54,10 @@ function validateSqlSafety(sqlString: string): {
   for (const dangerous of DANGEROUS_OPERATIONS) {
     const regex = new RegExp(`\\b${dangerous}\\b`, "i");
     if (regex.test(upperSql)) {
+      // Special case: EXPLAIN ANALYZE is safe (read-only operation)
+      if (dangerous === "ANALYZE" && upperSql.startsWith("EXPLAIN")) {
+        continue;
+      }
       return {
         isValid: false,
         error: `Dangerous operation '${dangerous}' is not allowed`,
@@ -65,13 +69,16 @@ function validateSqlSafety(sqlString: string): {
     const isReadOnly =
       upperSql.startsWith("SELECT") ||
       upperSql.startsWith("WITH") ||
-      upperSql.startsWith("EXPLAIN");
+      upperSql.startsWith("EXPLAIN") ||
+      upperSql.startsWith("SHOW") ||
+      upperSql.startsWith("VALUES") ||
+      upperSql.startsWith("TABLE");
 
     if (!isReadOnly) {
       return {
         isValid: false,
         error:
-          "Only SELECT, WITH, and EXPLAIN queries are allowed in read-only mode",
+          "Only SELECT, WITH, EXPLAIN, SHOW, VALUES, and TABLE queries are allowed in read-only mode",
       };
     }
   } else {
@@ -119,8 +126,56 @@ function isReadOnlyQuery(sqlString: string): boolean {
   return (
     upperSql.startsWith("SELECT") ||
     upperSql.startsWith("WITH") ||
-    upperSql.startsWith("EXPLAIN")
+    upperSql.startsWith("EXPLAIN") ||
+    upperSql.startsWith("SHOW") ||
+    upperSql.startsWith("VALUES") ||
+    upperSql.startsWith("TABLE")
   );
+}
+
+/**
+ * Converts a SQL string with $1, $2, ... placeholders into a Kysely SQL expression
+ * with native prepared statement support.
+ *
+ * This function takes a SQL string like "SELECT * FROM users WHERE id = $1 AND name = $2"
+ * and an array of parameters [123, "John"], and creates a Kysely sql template that
+ * uses PostgreSQL's native prepared statement protocol.
+ *
+ * @param sqlString - SQL query with $N placeholders
+ * @param parameters - Array of parameter values
+ * @returns Kysely SQL expression with native prepared statements
+ */
+function buildParameterizedQuery(
+  sqlString: string,
+  parameters: (string | number | boolean | null)[]
+) {
+  // Split the SQL string by $N placeholders and collect them in order
+  const placeholderRegex = /\$(\d+)/g;
+  const parts: string[] = [];
+  const placeholders: number[] = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = placeholderRegex.exec(sqlString)) !== null) {
+    // Add the text before this placeholder
+    parts.push(sqlString.substring(lastIndex, match.index));
+    placeholders.push(parseInt(match[1], 10));
+    lastIndex = match.index + match[0].length;
+  }
+  // Add any remaining text after the last placeholder
+  parts.push(sqlString.substring(lastIndex));
+
+  // Create a TemplateStringsArray-like object
+  // TypeScript's TemplateStringsArray has a 'raw' property that mirrors the string array
+  const templateStrings = parts as any;
+  templateStrings.raw = parts;
+
+  // Map placeholders to their actual parameter values
+  const paramValues = placeholders.map(num => parameters[num - 1]);
+
+  // Call sql as a tagged template function
+  // This is equivalent to: sql`part[0]${param[0]}part[1]${param[1]}...`
+  return sql(templateStrings, ...paramValues);
 }
 
 function isSingleRowAggregate(upperSql: string): boolean {
@@ -204,6 +259,7 @@ export async function queryTool(input: unknown): Promise<QueryOutput> {
 
       let result;
       if (validatedInput.parameters && validatedInput.parameters.length > 0) {
+        // Validate parameter types
         for (const param of validatedInput.parameters) {
           if (
             param !== null &&
@@ -216,40 +272,22 @@ export async function queryTool(input: unknown): Promise<QueryOutput> {
                 "Invalid parameter type - only string, number, boolean, and null are allowed",
             };
           }
+          // Validate numbers are finite
+          if (typeof param === "number" && !Number.isFinite(param)) {
+            return {
+              error: "Invalid numeric parameter - must be finite number",
+            };
+          }
         }
 
-        // Use safer parameter substitution with better escaping than the original approach
-        let finalSql = paginatedSql;
-        validatedInput.parameters.forEach((param, index) => {
-          const placeholder = `$${index + 1}`;
-          let escapedValue: string;
-
-          if (param === null) {
-            escapedValue = "NULL";
-          } else if (typeof param === "string") {
-            escapedValue = `'${param
-              .replace(/'/g, "''")
-              .replace(/\\/g, "\\\\")
-              .replace(/\0/g, "")}'`;
-          } else if (typeof param === "boolean") {
-            escapedValue = param ? "TRUE" : "FALSE";
-          } else {
-            // Numbers - validate they're actually numbers and not NaN/Infinity
-            if (!Number.isFinite(param)) {
-              return {
-                error: "Invalid numeric parameter - must be finite number",
-              };
-            }
-            escapedValue = String(param);
-          }
-
-          finalSql = finalSql.replace(
-            new RegExp(`\\${placeholder}\\b`, "g"),
-            escapedValue
-          );
-        });
-
-        result = await sql.raw(finalSql).execute(db);
+        // Use Kysely's native prepared statement support
+        // This sends parameters separately to PostgreSQL, enabling query plan caching
+        // and eliminating SQL injection risk
+        const query = buildParameterizedQuery(
+          paginatedSql,
+          validatedInput.parameters
+        );
+        result = await query.execute(db);
       } else {
         // No parameters - use raw SQL directly
         result = await sql.raw(paginatedSql).execute(db);
@@ -271,6 +309,7 @@ export async function queryTool(input: unknown): Promise<QueryOutput> {
       // For write operations (when not in read-only mode)
       let result;
       if (validatedInput.parameters && validatedInput.parameters.length > 0) {
+        // Validate parameter types
         for (const param of validatedInput.parameters) {
           if (
             param !== null &&
@@ -283,38 +322,20 @@ export async function queryTool(input: unknown): Promise<QueryOutput> {
                 "Invalid parameter type - only string, number, boolean, and null are allowed",
             };
           }
+          // Validate numbers are finite
+          if (typeof param === "number" && !Number.isFinite(param)) {
+            return {
+              error: "Invalid numeric parameter - must be finite number",
+            };
+          }
         }
 
-        let finalSql = trimmedSql;
-        validatedInput.parameters.forEach((param, index) => {
-          const placeholder = `$${index + 1}`;
-          let escapedValue: string;
-
-          if (param === null) {
-            escapedValue = "NULL";
-          } else if (typeof param === "string") {
-            escapedValue = `'${param
-              .replace(/'/g, "''")
-              .replace(/\\/g, "\\\\")
-              .replace(/\0/g, "")}'`;
-          } else if (typeof param === "boolean") {
-            escapedValue = param ? "TRUE" : "FALSE";
-          } else {
-            if (!Number.isFinite(param)) {
-              return {
-                error: "Invalid numeric parameter - must be finite number",
-              };
-            }
-            escapedValue = String(param);
-          }
-
-          finalSql = finalSql.replace(
-            new RegExp(`\\${placeholder}\\b`, "g"),
-            escapedValue
-          );
-        });
-
-        result = await sql.raw(finalSql).execute(db);
+        // Use Kysely's native prepared statement support
+        const query = buildParameterizedQuery(
+          trimmedSql,
+          validatedInput.parameters
+        );
+        result = await query.execute(db);
       } else {
         result = await sql.raw(trimmedSql).execute(db);
       }
