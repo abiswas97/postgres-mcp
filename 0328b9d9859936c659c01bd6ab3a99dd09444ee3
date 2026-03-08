@@ -1,0 +1,23 @@
+tests/unit/tools/query-ddl.test.ts
+  584ba5741e463db4 1-159
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.8",
+  "base_commit_sha": "0328b9d9859936c659c01bd6ab3a99dd09444ee3",
+  "prompts": {
+    "584ba5741e463db4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d81dc5e8-f3ce-4ae7-9729-2c7bae5a2683",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "Avi <avishek.biswas.1997@gmail.com>",
+      "messages": [],
+      "total_additions": 159,
+      "total_deletions": 0,
+      "accepted_lines": 159,
+      "overriden_lines": 0
+    }
+  }
+}
