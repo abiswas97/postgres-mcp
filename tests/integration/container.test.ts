@@ -795,48 +795,52 @@ describeWithDocker("Testcontainer Integration Tests", () => {
 
   test("should verify database health check with real connection", async () => {
     const testTools = createTestTools(containerSetup.connectionInfo);
+    let closeDb: (() => Promise<void>) | undefined;
     try {
-      const { closeDb } = await testTools.getTools();
+      const tools = await testTools.getTools();
+      closeDb = tools.closeDb;
       const { getDbManager } = await import("../../src/db");
 
       const health = await getDbManager().healthCheck();
       expect(health.healthy).toBe(true);
       expect(health.error).toBeUndefined();
-
-      await closeDb();
     } finally {
+      await closeDb?.();
       testTools.cleanup();
     }
   });
 
   test("should reconnect after close with real database", async () => {
     const testTools = createTestTools(containerSetup.connectionInfo);
+    let closeDb: (() => Promise<void>) | undefined;
     try {
-      const { queryTool, closeDb } = await testTools.getTools();
+      const tools = await testTools.getTools();
+      closeDb = tools.closeDb;
       const { getDbManager } = await import("../../src/db");
 
-      const result1 = await queryTool({ sql: "SELECT 1 as val" });
+      const result1 = await tools.queryTool({ sql: "SELECT 1 as val" });
       expect(result1.error).toBeUndefined();
       expect(getDbManager().isConnected()).toBe(true);
 
       await closeDb();
       expect(getDbManager().isConnected()).toBe(false);
 
-      const result2 = await queryTool({ sql: "SELECT 2 as val" });
+      const result2 = await tools.queryTool({ sql: "SELECT 2 as val" });
       expect(result2.error).toBeUndefined();
       expect(getDbManager().isConnected()).toBe(true);
-
-      await closeDb();
     } finally {
+      await closeDb?.();
       testTools.cleanup();
     }
   });
 
   test("should return correct config for container connection", async () => {
     const testTools = createTestTools(containerSetup.connectionInfo);
+    let closeDb: (() => Promise<void>) | undefined;
     try {
-      await testTools.getTools();
-      const { getDbManager, closeDb } = await import("../../src/db");
+      const tools = await testTools.getTools();
+      closeDb = tools.closeDb;
+      const { getDbManager } = await import("../../src/db");
 
       const config = getDbManager().getConfig();
       expect(config.host).toBe(containerSetup.connectionInfo.host);
@@ -844,9 +848,8 @@ describeWithDocker("Testcontainer Integration Tests", () => {
       expect(config.user).toBe(containerSetup.connectionInfo.username);
       expect(config.database).toBe(containerSetup.connectionInfo.database);
       expect(config.ssl).toBe(false);
-
-      await closeDb();
     } finally {
+      await closeDb?.();
       testTools.cleanup();
     }
   });
