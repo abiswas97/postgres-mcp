@@ -83,6 +83,16 @@ export const DiagnoseDatabaseInputSchema = z.object({
 
 export type DiagnoseDatabaseInput = z.infer<typeof DiagnoseDatabaseInputSchema>;
 
+export const GetSlowQueriesInputSchema = z.object({
+  sort_by: z.enum(['total_time', 'mean_time', 'calls', 'rows']).optional(),
+  limit: z.number().min(1).max(50).optional(),
+  min_calls: z.number().min(0).optional(),
+  min_duration_ms: z.number().min(0).optional(),
+  include_query_text: z.boolean().optional()
+});
+
+export type GetSlowQueriesInput = z.infer<typeof GetSlowQueriesInputSchema>;
+
 export function validateInput<T>(schema: z.ZodSchema<T>, input: unknown): { success: true; data: T } | { success: false; error: string } {
   try {
     const data = schema.parse(input);

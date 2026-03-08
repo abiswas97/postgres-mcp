@@ -17,6 +17,7 @@ import {
   SearchObjectsInputSchema,
   GetConnectionsInputSchema,
   DiagnoseDatabaseInputSchema,
+  GetSlowQueriesInputSchema,
   validateInput
 } from "./validation.js";
 import { queryTool } from "./tools/query.js";
@@ -28,6 +29,7 @@ import { explainQueryTool } from "./tools/performance.js";
 import { searchObjectsTool } from "./tools/search.js";
 import { getConnectionsTool } from "./tools/connections.js";
 import { diagnoseDatabaseTool } from "./tools/diagnostics.js";
+import { getSlowQueriesTool } from "./tools/slow-queries.js";
 import { closeDb } from "./db.js";
 
 // Helper to extract inline schema from zodToJsonSchema output
@@ -95,6 +97,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         name: "diagnose_database",
         description: "Composite database health check: cache, connections, vacuum, indexes, sequences",
         inputSchema: getInlineSchema(DiagnoseDatabaseInputSchema, "DiagnoseDatabaseInput"),
+      },
+      {
+        name: "get_slow_queries",
+        description: "Analyze slow queries via pg_stat_statements with filtering and sorting",
+        inputSchema: getInlineSchema(GetSlowQueriesInputSchema, "GetSlowQueriesInput"),
       },
     ],
   };
@@ -215,6 +222,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           return createErrorResponse(`Input validation failed: ${validation.error}`);
         }
         const result = await diagnoseDatabaseTool(validation.data);
+        return createSafeToolResponse(result);
+      }
+
+      case "get_slow_queries": {
+        const validation = validateInput(GetSlowQueriesInputSchema, args);
+        if (!validation.success) {
+          return createErrorResponse(`Input validation failed: ${validation.error}`);
+        }
+        const result = await getSlowQueriesTool(validation.data);
         return createSafeToolResponse(result);
       }
 
