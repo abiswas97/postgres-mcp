@@ -60,6 +60,15 @@ export const ExplainQueryInputSchema = z.object({
   format: z.enum(['text', 'json', 'xml', 'yaml']).optional()
 });
 
+export const SearchObjectsInputSchema = z.object({
+  pattern: z.string().min(1).max(200),
+  object_types: z.array(z.enum(['table', 'view', 'column', 'function', 'index', 'constraint'])).optional(),
+  schemas: z.array(z.string().min(1).max(63)).optional(),
+  limit: z.number().min(1).max(100).optional()
+});
+
+export type SearchObjectsInput = z.infer<typeof SearchObjectsInputSchema>;
+
 export function validateInput<T>(schema: z.ZodSchema<T>, input: unknown): { success: true; data: T } | { success: false; error: string } {
   try {
     const data = schema.parse(input);
