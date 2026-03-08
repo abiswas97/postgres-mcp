@@ -7,9 +7,9 @@ export const QueryInputSchema = z.object({
     z.number(),
     z.boolean(),
     z.null()
-  ])).optional().describe("Optional array of parameters for parameterized queries"),
-  pageSize: z.number().min(1).max(500).optional().describe("Number of rows to return (1-500, default: 100)"),
-  offset: z.number().min(0).optional().describe("Number of rows to skip for pagination")
+  ])).optional(),
+  pageSize: z.number().min(1).max(500).optional(),
+  offset: z.number().min(0).optional()
 });
 
 export const QueryOutputSchema = z.object({

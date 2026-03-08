@@ -47,7 +47,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
     tools: [
       {
         name: "query",
-        description: "Execute SQL queries with pagination support and parameterization for security. Supports page sizes up to 500 rows.",
+        description: "Execute SQL with pagination and parameterization",
         inputSchema: getInlineSchema(QueryInputSchema, "QueryInput"),
       },
       {
