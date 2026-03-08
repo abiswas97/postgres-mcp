@@ -1,6 +1,6 @@
 {
   "$schema": "https://claude.ai/schemas/marketplace.json",
-  "name": "postgres-mcp",
+  "name": "abiswas",
   "description": "PostgreSQL database tools for Claude Code — diagnostics, slow query analysis, and connection monitoring",
   "owner": {
     "name": "Avi Biswas",
