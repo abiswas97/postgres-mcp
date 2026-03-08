@@ -1,0 +1,23 @@
+tests/integration/container.test.ts
+  ec6a4b0c5708d0ff 21-32,34,71-72,74-81,83-119,121-130,239,245,277,370,439,442,488,624,627,646,769,795-852
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.8",
+  "base_commit_sha": "db1244b3292d40242de40ae5042b56db568133f2",
+  "prompts": {
+    "ec6a4b0c5708d0ff": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5e5a7bfb-b4bd-4cc1-a782-7fe0bdfa4265",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Avi <avishek.biswas.1997@gmail.com>",
+      "messages": [],
+      "total_additions": 58,
+      "total_deletions": 0,
+      "accepted_lines": 611,
+      "overriden_lines": 0
+    }
+  }
+}
