@@ -7,25 +7,22 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 
 import { zodToJsonSchema } from "zod-to-json-schema";
-import { 
-  QueryInputSchema, 
+import {
+  QueryInputSchema,
   DescribeTableInputSchema,
-  ListTablesInputSchema,
+  ListObjectsInputSchema,
   ListSchemasInputSchema,
   ListIndexesInputSchema,
   ExplainQueryInputSchema,
   GetTableStatsInputSchema,
-  ListViewsInputSchema,
-  ListFunctionsInputSchema,
   validateInput
 } from "./validation.js";
 import { queryTool } from "./tools/query.js";
 import { describeTableTool, getConstraintsTool } from "./tools/describe.js";
-import { listTablesTool, listViewsTool } from "./tools/list.js";
+import { listObjectsTool } from "./tools/list.js";
 import { listSchemasTool } from "./tools/schemas.js";
 import { listIndexesTool } from "./tools/indexes.js";
 import { explainQueryTool, getTableStatsTool } from "./tools/performance.js";
-import { listFunctionsTool } from "./tools/functions.js";
 import { closeDb } from "./db.js";
 
 // Helper to extract inline schema from zodToJsonSchema output
@@ -60,9 +57,9 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         inputSchema: getInlineSchema(DescribeTableInputSchema, "DescribeTableInput"),
       },
       {
-        name: "list_tables",
-        description: "List all tables in a schema",
-        inputSchema: getInlineSchema(ListTablesInputSchema, "ListTablesInput"),
+        name: "list_objects",
+        description: "List tables, views, or functions in a schema",
+        inputSchema: getInlineSchema(ListObjectsInputSchema, "ListObjectsInput"),
       },
       {
         name: "get_constraints",
@@ -88,16 +85,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         name: "get_table_stats",
         description: "Get table statistics and size information",
         inputSchema: getInlineSchema(GetTableStatsInputSchema, "GetTableStatsInput"),
-      },
-      {
-        name: "list_views",
-        description: "List views in a schema",
-        inputSchema: getInlineSchema(ListViewsInputSchema, "ListViewsInput"),
-      },
-      {
-        name: "list_functions",
-        description: "List functions and procedures in a schema",
-        inputSchema: getInlineSchema(ListFunctionsInputSchema, "ListFunctionsInput"),
       },
     ],
   };
@@ -158,12 +145,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return createSafeToolResponse(result);
       }
 
-      case "list_tables": {
-        const validation = validateInput(ListTablesInputSchema, args);
+      case "list_objects": {
+        const validation = validateInput(ListObjectsInputSchema, args);
         if (!validation.success) {
           return createErrorResponse(`Input validation failed: ${validation.error}`);
         }
-        const result = await listTablesTool(validation.data);
+        const result = await listObjectsTool(validation.data);
         return createSafeToolResponse(result);
       }
 
@@ -212,23 +199,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return createSafeToolResponse(result);
       }
 
-      case "list_views": {
-        const validation = validateInput(ListViewsInputSchema, args);
-        if (!validation.success) {
-          return createErrorResponse(`Input validation failed: ${validation.error}`);
-        }
-        const result = await listViewsTool(validation.data);
-        return createSafeToolResponse(result);
-      }
-
-      case "list_functions": {
-        const validation = validateInput(ListFunctionsInputSchema, args);
-        if (!validation.success) {
-          return createErrorResponse(`Input validation failed: ${validation.error}`);
-        }
-        const result = await listFunctionsTool(validation.data);
-        return createSafeToolResponse(result);
-      }
 
       default:
         throw new Error(`Unknown tool: ${name}`);

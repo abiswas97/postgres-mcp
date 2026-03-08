@@ -54,9 +54,9 @@ describe("Package Structure", () => {
       expect(typeof queryTool).toBe("function");
     });
 
-    test("should export list tables tool function", async () => {
-      const { listTablesTool } = await import("../../src/tools/list");
-      expect(typeof listTablesTool).toBe("function");
+    test("should export list objects tool function", async () => {
+      const { listObjectsTool } = await import("../../src/tools/list");
+      expect(typeof listObjectsTool).toBe("function");
     });
 
     test("should export describe table tools", async () => {

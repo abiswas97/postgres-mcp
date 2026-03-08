@@ -30,7 +30,7 @@ describe('Full Workflow Integration Tests', () => {
       await withDocker(async () => {
         if (!testEnv) return;
 
-        const { queryTool, listTablesTool, describeTableTool, getConstraintsTool, closeDb } = 
+        const { queryTool, listObjectsTool, describeTableTool, getConstraintsTool, closeDb } =
           await testEnv.getTools();
 
         try {
@@ -43,14 +43,14 @@ describe('Full Workflow Integration Tests', () => {
           expect(connectionTest.rows!.length).toBe(1);
 
           // Step 2: List tables in test schema
-          const tablesResult = await listTablesTool({ schema: 'testschema' });
+          const tablesResult = await listObjectsTool({ type: 'tables', schema: 'testschema' });
           expect(tablesResult.error).toBeUndefined();
-          expect(tablesResult.tables).toBeDefined();
-          expect(tablesResult.tables!.length).toBe(6); // 5 tables + 1 view
+          expect(tablesResult.objects).toBeDefined();
+          expect(tablesResult.objects!.length).toBe(5); // 5 base tables only
 
-          const tableNames = tablesResult.tables!.map((t: any) => t.table_name).sort();
+          const tableNames = tablesResult.objects!.map((t: any) => t.object_name).sort();
           expect(tableNames).toEqual([
-            'categories', 'post_tags', 'posts', 'published_posts', 'tags', 'users'
+            'categories', 'post_tags', 'posts', 'tags', 'users'
           ]);
 
           // Step 3: Describe users table
@@ -191,7 +191,7 @@ describe('Full Workflow Integration Tests', () => {
       await withDocker(async () => {
         if (!testEnv) return;
 
-        const { queryTool, describeTableTool, listTablesTool, closeDb } = 
+        const { queryTool, describeTableTool, listObjectsTool, closeDb } =
           await testEnv.getTools();
 
         try {
@@ -205,7 +205,7 @@ describe('Full Workflow Integration Tests', () => {
           // Test constraint violation
           const duplicateEmail = await queryTool({
             sql: `
-              INSERT INTO testschema.users (name, email, age) 
+              INSERT INTO testschema.users (name, email, age)
               VALUES ('Duplicate', 'john@example.com', 25)
             `
           });
@@ -222,12 +222,13 @@ describe('Full Workflow Integration Tests', () => {
           expect(nonExistentTable.columns!.length).toBe(0);
 
           // Test non-existent schema
-          const nonExistentSchema = await listTablesTool({
+          const nonExistentSchema = await listObjectsTool({
+            type: 'tables',
             schema: 'nonexistent_schema_12345'
           });
           expect(nonExistentSchema.error).toBeUndefined();
-          expect(nonExistentSchema.tables).toBeDefined();
-          expect(nonExistentSchema.tables!.length).toBe(0);
+          expect(nonExistentSchema.objects).toBeDefined();
+          expect(nonExistentSchema.objects!.length).toBe(0);
 
         } finally {
           await closeDb();

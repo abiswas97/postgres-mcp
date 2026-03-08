@@ -33,9 +33,10 @@ export const DescribeTableInputSchema = z.object({
     .regex(/^[a-zA-Z_][a-zA-Z0-9_]*$/, "Invalid table name format")
 });
 
-export const ListTablesInputSchema = z.object({
+export const ListObjectsInputSchema = z.object({
+  type: z.enum(['tables', 'views', 'functions']),
   schema: z.string().min(1).max(63)
-    .regex(/^[a-zA-Z_][a-zA-Z0-9_]*$/, "Invalid schema name format")
+    .regex(/^[a-zA-Z_][a-zA-Z0-9_]*$/)
     .optional()
 });
 
@@ -67,17 +68,6 @@ export const GetTableStatsInputSchema = z.object({
     .optional()
 });
 
-export const ListViewsInputSchema = z.object({
-  schema: z.string().min(1).max(63)
-    .regex(/^[a-zA-Z_][a-zA-Z0-9_]*$/, "Invalid schema name format")
-    .optional()
-});
-
-export const ListFunctionsInputSchema = z.object({
-  schema: z.string().min(1).max(63)
-    .regex(/^[a-zA-Z_][a-zA-Z0-9_]*$/, "Invalid schema name format")
-    .optional()
-});
 
 export function validateInput<T>(schema: z.ZodSchema<T>, input: unknown): { success: true; data: T } | { success: false; error: string } {
   try {
@@ -101,10 +91,8 @@ export function validateInput<T>(schema: z.ZodSchema<T>, input: unknown): { succ
 export type QueryInput = z.infer<typeof QueryInputSchema>;
 export type QueryOutput = z.infer<typeof QueryOutputSchema>;
 export type DescribeTableInput = z.infer<typeof DescribeTableInputSchema>;
-export type ListTablesInput = z.infer<typeof ListTablesInputSchema>;
+export type ListObjectsInput = z.infer<typeof ListObjectsInputSchema>;
 export type ListSchemasInput = z.infer<typeof ListSchemasInputSchema>;
 export type ListIndexesInput = z.infer<typeof ListIndexesInputSchema>;
 export type ExplainQueryInput = z.infer<typeof ExplainQueryInputSchema>;
 export type GetTableStatsInput = z.infer<typeof GetTableStatsInputSchema>;
-export type ListViewsInput = z.infer<typeof ListViewsInputSchema>;
-export type ListFunctionsInput = z.infer<typeof ListFunctionsInputSchema>;

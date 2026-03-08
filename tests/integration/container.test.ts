@@ -28,7 +28,6 @@ function createTestTools(connectionInfo: any) {
   delete require.cache[require.resolve("../../src/tools/schemas")];
   delete require.cache[require.resolve("../../src/tools/indexes")];
   delete require.cache[require.resolve("../../src/tools/performance")];
-  delete require.cache[require.resolve("../../src/tools/functions")];
 
   const cleanup = () => {
     process.env = originalEnv;
@@ -38,9 +37,7 @@ function createTestTools(connectionInfo: any) {
     cleanup,
     getTools: async () => {
       const { queryTool } = await import("../../src/tools/query");
-      const { listTablesTool, listViewsTool } = await import(
-        "../../src/tools/list"
-      );
+      const { listObjectsTool } = await import("../../src/tools/list");
       const { describeTableTool, getConstraintsTool } = await import(
         "../../src/tools/describe"
       );
@@ -49,19 +46,16 @@ function createTestTools(connectionInfo: any) {
       const { explainQueryTool, getTableStatsTool } = await import(
         "../../src/tools/performance"
       );
-      const { listFunctionsTool } = await import("../../src/tools/functions");
       const { closeDb } = await import("../../src/db");
       return {
         queryTool,
-        listTablesTool,
-        listViewsTool,
+        listObjectsTool,
         describeTableTool,
         getConstraintsTool,
         listSchemasTool,
         listIndexesTool,
         explainQueryTool,
         getTableStatsTool,
-        listFunctionsTool,
         closeDb,
       };
     },
@@ -148,15 +142,13 @@ describe("Testcontainer Integration Tests", () => {
     try {
       const {
         queryTool,
-        listTablesTool,
-        listViewsTool,
+        listObjectsTool,
         describeTableTool,
         getConstraintsTool,
         listSchemasTool,
         listIndexesTool,
         explainQueryTool,
         getTableStatsTool,
-        listFunctionsTool,
         closeDb,
       } = await testTools.getTools();
 
@@ -169,15 +161,15 @@ describe("Testcontainer Integration Tests", () => {
       expect(queryResult.rows![0].count).toBe("3");
 
       // Test 2: List tables
-      const tablesResult = await listTablesTool({ schema: "testschema" });
+      const tablesResult = await listObjectsTool({ type: "tables", schema: "testschema" });
       expect(tablesResult.error).toBeUndefined();
-      expect(tablesResult.tables).toBeDefined();
-      expect(tablesResult.tables!.length).toBe(6); // 5 tables + 1 view
+      expect(tablesResult.objects).toBeDefined();
+      expect(tablesResult.objects!.length).toBe(5); // 5 base tables only
 
-      const tableNames = tablesResult.tables!.map((t) => t.table_name).sort();
+      const tableNames = tablesResult.objects!.map((t) => t.object_name).sort();
       expect(tableNames).toContain("users");
       expect(tableNames).toContain("posts");
-      expect(tableNames).toContain("published_posts"); // view
+      expect(tableNames).not.toContain("published_posts"); // view excluded
 
       // Test 3: Describe table
       const describeResult = await describeTableTool({
@@ -304,24 +296,23 @@ describe("Testcontainer Integration Tests", () => {
       expect(userStatsResult.stats![0].table_name).toBe("users");
 
       // Test 13: List views
-      const viewsResult = await listViewsTool({ schema: "testschema" });
+      const viewsResult = await listObjectsTool({ type: "views", schema: "testschema" });
       expect(viewsResult.error).toBeUndefined();
-      expect(viewsResult.views).toBeDefined();
+      expect(viewsResult.objects).toBeDefined();
 
-      const viewNames = viewsResult.views!.map((v) => v.view_name);
+      const viewNames = viewsResult.objects!.map((v) => v.object_name);
       expect(viewNames).toContain("published_posts");
 
-      const publishedView = viewsResult.views!.find(
-        (v) => v.view_name === "published_posts"
+      const publishedView = viewsResult.objects!.find(
+        (v) => v.object_name === "published_posts"
       );
       expect(publishedView).toBeDefined();
-      expect(publishedView!.view_definition).toContain("SELECT");
+      expect(publishedView!.details).toContain("SELECT");
 
       // Test 14: List functions
-      const functionsResult = await listFunctionsTool({ schema: "testschema" });
+      const functionsResult = await listObjectsTool({ type: "functions", schema: "testschema" });
       expect(functionsResult.error).toBeUndefined();
-      expect(functionsResult.functions).toBeDefined();
-      // Note: May be empty if no functions are created in test schema
+      expect(functionsResult.objects).toBeDefined();
 
       await closeDb();
     } finally {
