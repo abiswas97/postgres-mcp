@@ -18,7 +18,6 @@ export interface SearchObjectsOutput {
 }
 
 const ALL_OBJECT_TYPES = ["table", "view", "column", "function", "index", "constraint"] as const;
-const _SYSTEM_SCHEMAS = ["pg_catalog", "information_schema", "pg_toast"];
 
 async function searchTables(
   db: Kysely<Database>,
