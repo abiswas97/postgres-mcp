@@ -1,34 +1,36 @@
 #!/usr/bin/env node
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
+import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 
 import { zodToJsonSchema } from "zod-to-json-schema";
-import { 
-  QueryInputSchema, 
-  DescribeTableInputSchema,
-  ListTablesInputSchema,
-  ListSchemasInputSchema,
-  ListIndexesInputSchema,
-  ExplainQueryInputSchema,
-  GetTableStatsInputSchema,
-  ListViewsInputSchema,
-  ListFunctionsInputSchema,
-  validateInput
-} from "./validation.js";
-import { queryTool } from "./tools/query.js";
-import { describeTableTool, getConstraintsTool } from "./tools/describe.js";
-import { listTablesTool, listViewsTool } from "./tools/list.js";
-import { listSchemasTool } from "./tools/schemas.js";
-import { listIndexesTool } from "./tools/indexes.js";
-import { explainQueryTool, getTableStatsTool } from "./tools/performance.js";
-import { listFunctionsTool } from "./tools/functions.js";
 import { closeDb } from "./db.js";
+import { getConnectionsTool } from "./tools/connections.js";
+import { describeTableTool } from "./tools/describe.js";
+import { diagnoseDatabaseTool } from "./tools/diagnostics.js";
+import { listIndexesTool } from "./tools/indexes.js";
+import { listObjectsTool } from "./tools/list.js";
+import { explainQueryTool } from "./tools/performance.js";
+import { queryTool } from "./tools/query.js";
+import { listSchemasTool } from "./tools/schemas.js";
+import { searchObjectsTool } from "./tools/search.js";
+import { getSlowQueriesTool } from "./tools/slow-queries.js";
+import {
+  DescribeTableInputSchema,
+  DiagnoseDatabaseInputSchema,
+  ExplainQueryInputSchema,
+  GetConnectionsInputSchema,
+  GetSlowQueriesInputSchema,
+  ListIndexesInputSchema,
+  ListObjectsInputSchema,
+  ListSchemasInputSchema,
+  QueryInputSchema,
+  SearchObjectsInputSchema,
+  validateInput,
+} from "./validation.js";
 
 // Helper to extract inline schema from zodToJsonSchema output
+// biome-ignore lint/suspicious/noExplicitAny: zod-to-json-schema accepts any Zod schema type
 function getInlineSchema(zodSchema: any, name: string) {
   const jsonSchema = zodToJsonSchema(zodSchema, { name });
   return jsonSchema.definitions?.[name] || jsonSchema;
@@ -37,13 +39,13 @@ function getInlineSchema(zodSchema: any, name: string) {
 const server = new Server(
   {
     name: "postgres-mcp-server",
-    version: "1.0.0",
+    version: "2.0.0",
   },
   {
     capabilities: {
       tools: {},
     },
-  }
+  },
 );
 
 server.setRequestHandler(ListToolsRequestSchema, async () => {
@@ -51,23 +53,18 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
     tools: [
       {
         name: "query",
-        description: "Execute SQL queries with pagination support and parameterization for security. Supports page sizes up to 500 rows.",
+        description: "Execute SQL with pagination and parameterization",
         inputSchema: getInlineSchema(QueryInputSchema, "QueryInput"),
       },
       {
         name: "describe_table",
-        description: "Get the structure of a database table",
+        description: "Get table structure including columns, constraints, and size statistics",
         inputSchema: getInlineSchema(DescribeTableInputSchema, "DescribeTableInput"),
       },
       {
-        name: "list_tables",
-        description: "List all tables in a schema",
-        inputSchema: getInlineSchema(ListTablesInputSchema, "ListTablesInput"),
-      },
-      {
-        name: "get_constraints",
-        description: "Get constraints for a table",
-        inputSchema: getInlineSchema(DescribeTableInputSchema, "DescribeTableInput"),
+        name: "list_objects",
+        description: "List tables, views, or functions in a schema",
+        inputSchema: getInlineSchema(ListObjectsInputSchema, "ListObjectsInput"),
       },
       {
         name: "list_schemas",
@@ -85,25 +82,33 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         inputSchema: getInlineSchema(ExplainQueryInputSchema, "ExplainQueryInput"),
       },
       {
-        name: "get_table_stats",
-        description: "Get table statistics and size information",
-        inputSchema: getInlineSchema(GetTableStatsInputSchema, "GetTableStatsInput"),
+        name: "search_objects",
+        description: "Find tables, columns, functions, views by name pattern across schemas",
+        inputSchema: getInlineSchema(SearchObjectsInputSchema, "SearchObjectsInput"),
       },
       {
-        name: "list_views",
-        description: "List views in a schema",
-        inputSchema: getInlineSchema(ListViewsInputSchema, "ListViewsInput"),
+        name: "get_connections",
+        description:
+          "Show active database connections, utilization, and idle-in-transaction warnings",
+        inputSchema: getInlineSchema(GetConnectionsInputSchema, "GetConnectionsInput"),
       },
       {
-        name: "list_functions",
-        description: "List functions and procedures in a schema",
-        inputSchema: getInlineSchema(ListFunctionsInputSchema, "ListFunctionsInput"),
+        name: "diagnose_database",
+        description:
+          "Composite database health check: cache, connections, vacuum, indexes, sequences",
+        inputSchema: getInlineSchema(DiagnoseDatabaseInputSchema, "DiagnoseDatabaseInput"),
+      },
+      {
+        name: "get_slow_queries",
+        description: "Analyze slow queries via pg_stat_statements with filtering and sorting",
+        inputSchema: getInlineSchema(GetSlowQueriesInputSchema, "GetSlowQueriesInput"),
       },
     ],
   };
 });
 
 // Helper function to safely validate and execute tools
+// biome-ignore lint/suspicious/noExplicitAny: tool results are heterogeneous JSON-serializable objects
 function createSafeToolResponse(result: any) {
   return {
     content: [
@@ -125,10 +130,10 @@ function createErrorResponse(error: string, code: string = "VALIDATION_ERROR") {
           {
             error,
             code,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
           },
           null,
-          2
+          2,
         ),
       },
     ],
@@ -158,21 +163,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return createSafeToolResponse(result);
       }
 
-      case "list_tables": {
-        const validation = validateInput(ListTablesInputSchema, args);
+      case "list_objects": {
+        const validation = validateInput(ListObjectsInputSchema, args);
         if (!validation.success) {
           return createErrorResponse(`Input validation failed: ${validation.error}`);
         }
-        const result = await listTablesTool(validation.data);
-        return createSafeToolResponse(result);
-      }
-
-      case "get_constraints": {
-        const validation = validateInput(DescribeTableInputSchema, args);
-        if (!validation.success) {
-          return createErrorResponse(`Input validation failed: ${validation.error}`);
-        }
-        const result = await getConstraintsTool(validation.data);
+        const result = await listObjectsTool(validation.data);
         return createSafeToolResponse(result);
       }
 
@@ -203,30 +199,39 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return createSafeToolResponse(result);
       }
 
-      case "get_table_stats": {
-        const validation = validateInput(GetTableStatsInputSchema, args);
+      case "search_objects": {
+        const validation = validateInput(SearchObjectsInputSchema, args);
         if (!validation.success) {
           return createErrorResponse(`Input validation failed: ${validation.error}`);
         }
-        const result = await getTableStatsTool(validation.data);
+        const result = await searchObjectsTool(validation.data);
         return createSafeToolResponse(result);
       }
 
-      case "list_views": {
-        const validation = validateInput(ListViewsInputSchema, args);
+      case "get_connections": {
+        const validation = validateInput(GetConnectionsInputSchema, args);
         if (!validation.success) {
           return createErrorResponse(`Input validation failed: ${validation.error}`);
         }
-        const result = await listViewsTool(validation.data);
+        const result = await getConnectionsTool(validation.data);
         return createSafeToolResponse(result);
       }
 
-      case "list_functions": {
-        const validation = validateInput(ListFunctionsInputSchema, args);
+      case "diagnose_database": {
+        const validation = validateInput(DiagnoseDatabaseInputSchema, args);
         if (!validation.success) {
           return createErrorResponse(`Input validation failed: ${validation.error}`);
         }
-        const result = await listFunctionsTool(validation.data);
+        const result = await diagnoseDatabaseTool(validation.data);
+        return createSafeToolResponse(result);
+      }
+
+      case "get_slow_queries": {
+        const validation = validateInput(GetSlowQueriesInputSchema, args);
+        if (!validation.success) {
+          return createErrorResponse(`Input validation failed: ${validation.error}`);
+        }
+        const result = await getSlowQueriesTool(validation.data);
         return createSafeToolResponse(result);
       }
 
@@ -234,8 +239,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         throw new Error(`Unknown tool: ${name}`);
     }
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    
+    const _errorMessage = error instanceof Error ? error.message : "Unknown error";
+
     return {
       isError: true,
       content: [
@@ -246,10 +251,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               error: "Tool execution failed",
               code: "TOOL_EXECUTION_ERROR",
               timestamp: new Date().toISOString(),
-              hint: "Check your input parameters and try again"
+              hint: "Check your input parameters and try again",
             },
             null,
-            2
+            2,
           ),
         },
       ],

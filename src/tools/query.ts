@@ -1,10 +1,6 @@
+import { type QueryResult, sql } from "kysely";
 import { getDb } from "../db.js";
-import { sql } from "kysely";
-import {
-  QueryInputSchema,
-  validateInput,
-  type QueryOutput,
-} from "../validation.js";
+import { QueryInputSchema, type QueryOutput, validateInput } from "../validation.js";
 
 const MAX_PAGE_SIZE = parseInt(process.env.MAX_PAGE_SIZE || "500", 10);
 const DEFAULT_PAGE_SIZE = parseInt(process.env.DEFAULT_PAGE_SIZE || "100", 10);
@@ -70,8 +66,7 @@ function validateSqlSafety(sqlString: string): {
     if (!isReadOnly) {
       return {
         isValid: false,
-        error:
-          "Only SELECT, WITH, and EXPLAIN queries are allowed in read-only mode",
+        error: "Only SELECT, WITH, and EXPLAIN queries are allowed in read-only mode",
       };
     }
   } else {
@@ -117,9 +112,7 @@ function validateWhereClause(upperSql: string): boolean {
 function isReadOnlyQuery(sqlString: string): boolean {
   const upperSql = sqlString.trim().toUpperCase();
   return (
-    upperSql.startsWith("SELECT") ||
-    upperSql.startsWith("WITH") ||
-    upperSql.startsWith("EXPLAIN")
+    upperSql.startsWith("SELECT") || upperSql.startsWith("WITH") || upperSql.startsWith("EXPLAIN")
   );
 }
 
@@ -140,7 +133,7 @@ function isSingleRowAggregate(upperSql: string): boolean {
 function applyPagination(
   sqlString: string,
   pageSize?: number,
-  offset?: number
+  offset?: number,
 ): {
   sql: string;
   actualPageSize: number;
@@ -196,13 +189,9 @@ export async function queryTool(input: unknown): Promise<QueryOutput> {
         sql: paginatedSql,
         actualPageSize,
         actualOffset,
-      } = applyPagination(
-        trimmedSql,
-        validatedInput.pageSize,
-        validatedInput.offset
-      );
+      } = applyPagination(trimmedSql, validatedInput.pageSize, validatedInput.offset);
 
-      let result;
+      let result: QueryResult<unknown>;
       if (validatedInput.parameters && validatedInput.parameters.length > 0) {
         for (const param of validatedInput.parameters) {
           if (
@@ -212,15 +201,15 @@ export async function queryTool(input: unknown): Promise<QueryOutput> {
             typeof param !== "boolean"
           ) {
             return {
-              error:
-                "Invalid parameter type - only string, number, boolean, and null are allowed",
+              error: "Invalid parameter type - only string, number, boolean, and null are allowed",
             };
           }
         }
 
         // Use safer parameter substitution with better escaping than the original approach
         let finalSql = paginatedSql;
-        validatedInput.parameters.forEach((param, index) => {
+        for (let index = 0; index < validatedInput.parameters.length; index++) {
+          const param = validatedInput.parameters[index];
           const placeholder = `$${index + 1}`;
           let escapedValue: string;
 
@@ -243,11 +232,8 @@ export async function queryTool(input: unknown): Promise<QueryOutput> {
             escapedValue = String(param);
           }
 
-          finalSql = finalSql.replace(
-            new RegExp(`\\${placeholder}\\b`, "g"),
-            escapedValue
-          );
-        });
+          finalSql = finalSql.replace(new RegExp(`\\${placeholder}\\b`, "g"), escapedValue);
+        }
 
         result = await sql.raw(finalSql).execute(db);
       } else {
@@ -259,7 +245,7 @@ export async function queryTool(input: unknown): Promise<QueryOutput> {
       const hasMore = result.rows.length === actualPageSize;
 
       return {
-        rows: result.rows as Record<string, any>[],
+        rows: result.rows as Record<string, unknown>[],
         rowCount: result.rows.length,
         pagination: {
           hasMore,
@@ -269,7 +255,7 @@ export async function queryTool(input: unknown): Promise<QueryOutput> {
       };
     } else {
       // For write operations (when not in read-only mode)
-      let result;
+      let result: QueryResult<unknown>;
       if (validatedInput.parameters && validatedInput.parameters.length > 0) {
         for (const param of validatedInput.parameters) {
           if (
@@ -279,14 +265,14 @@ export async function queryTool(input: unknown): Promise<QueryOutput> {
             typeof param !== "boolean"
           ) {
             return {
-              error:
-                "Invalid parameter type - only string, number, boolean, and null are allowed",
+              error: "Invalid parameter type - only string, number, boolean, and null are allowed",
             };
           }
         }
 
         let finalSql = trimmedSql;
-        validatedInput.parameters.forEach((param, index) => {
+        for (let index = 0; index < validatedInput.parameters.length; index++) {
+          const param = validatedInput.parameters[index];
           const placeholder = `$${index + 1}`;
           let escapedValue: string;
 
@@ -308,11 +294,8 @@ export async function queryTool(input: unknown): Promise<QueryOutput> {
             escapedValue = String(param);
           }
 
-          finalSql = finalSql.replace(
-            new RegExp(`\\${placeholder}\\b`, "g"),
-            escapedValue
-          );
-        });
+          finalSql = finalSql.replace(new RegExp(`\\${placeholder}\\b`, "g"), escapedValue);
+        }
 
         result = await sql.raw(finalSql).execute(db);
       } else {
@@ -323,8 +306,7 @@ export async function queryTool(input: unknown): Promise<QueryOutput> {
       };
     }
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error occurred";
+    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
     let sanitizedError: string;
     let errorCode: string;
     let hint: string | undefined;
@@ -340,40 +322,27 @@ export async function queryTool(input: unknown): Promise<QueryOutput> {
     ) {
       sanitizedError = "Access denied - insufficient permissions";
       errorCode = "PERMISSION_DENIED";
-      hint =
-        "Contact your database administrator to grant necessary permissions";
+      hint = "Contact your database administrator to grant necessary permissions";
     } else if (
       errorMessage.includes("duplicate key value") ||
       errorMessage.includes("unique constraint")
     ) {
       sanitizedError = "Duplicate value - this record already exists";
       errorCode = "DUPLICATE_KEY";
-      hint =
-        "Check for existing records with the same unique values before inserting";
+      hint = "Check for existing records with the same unique values before inserting";
     } else if (errorMessage.includes("foreign key constraint")) {
       sanitizedError = "Foreign key constraint violation";
       errorCode = "FOREIGN_KEY_VIOLATION";
       hint = "Ensure referenced records exist before creating relationships";
-    } else if (
-      errorMessage.includes("relation") &&
-      errorMessage.includes("does not exist")
-    ) {
+    } else if (errorMessage.includes("relation") && errorMessage.includes("does not exist")) {
       sanitizedError = "Table or view does not exist";
       errorCode = "RELATION_NOT_FOUND";
-      hint =
-        "Check table name spelling and schema. Use list_tables to see available tables";
-    } else if (
-      errorMessage.includes("column") &&
-      errorMessage.includes("does not exist")
-    ) {
+      hint = "Check table name spelling and schema. Use list_tables to see available tables";
+    } else if (errorMessage.includes("column") && errorMessage.includes("does not exist")) {
       sanitizedError = "Column does not exist";
       errorCode = "COLUMN_NOT_FOUND";
-      hint =
-        "Check column name spelling. Use describe_table to see available columns";
-    } else if (
-      errorMessage.includes("timeout") ||
-      errorMessage.includes("cancelled")
-    ) {
+      hint = "Check column name spelling. Use describe_table to see available columns";
+    } else if (errorMessage.includes("timeout") || errorMessage.includes("cancelled")) {
       sanitizedError = "Query timeout - operation took too long";
       errorCode = "TIMEOUT";
       hint = "Try optimizing your query or adding appropriate indexes";

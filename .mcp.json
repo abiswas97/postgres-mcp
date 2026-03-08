@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "postgres": {
+      "command": "npx",
+      "args": ["postgres-mcp-server@latest"],
+      "env": {
+        "DB_HOST": "${DB_HOST:-127.0.0.1}",
+        "DB_PORT": "${DB_PORT:-5432}",
+        "DB_USER": "${DB_USER:-postgres}",
+        "DB_NAME": "${DB_NAME:-postgres}",
+        "DB_PASSWORD": "${DB_PASSWORD}",
+        "DB_SSL": "${DB_SSL:-true}",
+        "READ_ONLY": "${READ_ONLY:-true}"
+      }
+    }
+  }
+}

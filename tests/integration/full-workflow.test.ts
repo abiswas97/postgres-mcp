@@ -1,18 +1,18 @@
-import { describe, test, expect, beforeAll, afterAll } from '@jest/globals';
-import { createTestEnvironment, withDocker } from '../helpers/test-db';
-import { teardownTestContainer } from '../setup/testcontainer';
+import { afterAll, beforeAll, describe, expect, test } from "@jest/globals";
+import { createTestEnvironment, withDocker } from "../helpers/test-db";
+import { teardownTestContainer } from "../setup/testcontainer";
 
-describe('Full Workflow Integration Tests', () => {
+describe("Full Workflow Integration Tests", () => {
   let testEnv: Awaited<ReturnType<typeof createTestEnvironment>> | null = null;
 
   beforeAll(async () => {
     // Set environment for write operations
-    process.env.READ_ONLY = 'false';
-    process.env.NODE_ENV = 'development';
-    
+    process.env.READ_ONLY = "false";
+    process.env.NODE_ENV = "development";
+
     try {
       testEnv = await createTestEnvironment();
-    } catch (error) {
+    } catch (_error) {
       // Docker not available - tests will be skipped
       testEnv = null;
     }
@@ -25,63 +25,55 @@ describe('Full Workflow Integration Tests', () => {
     }
   }, 30000);
 
-  describe('Complete Database Workflow', () => {
-    test('should perform end-to-end database operations', async () => {
+  describe("Complete Database Workflow", () => {
+    test("should perform end-to-end database operations", async () => {
       await withDocker(async () => {
         if (!testEnv) return;
 
-        const { queryTool, listTablesTool, describeTableTool, getConstraintsTool, closeDb } = 
-          await testEnv.getTools();
+        const { queryTool, listObjectsTool, describeTableTool, closeDb } = await testEnv.getTools();
 
         try {
           // Step 1: Verify database connection
           const connectionTest = await queryTool({
-            sql: 'SELECT current_database() as db_name, version() as version'
+            sql: "SELECT current_database() as db_name, version() as version",
           });
           expect(connectionTest.error).toBeUndefined();
           expect(connectionTest.rows).toBeDefined();
           expect(connectionTest.rows!.length).toBe(1);
 
           // Step 2: List tables in test schema
-          const tablesResult = await listTablesTool({ schema: 'testschema' });
+          const tablesResult = await listObjectsTool({ type: "tables", schema: "testschema" });
           expect(tablesResult.error).toBeUndefined();
-          expect(tablesResult.tables).toBeDefined();
-          expect(tablesResult.tables!.length).toBe(6); // 5 tables + 1 view
+          expect(tablesResult.objects).toBeDefined();
+          expect(tablesResult.objects!.length).toBe(5); // 5 base tables only
 
-          const tableNames = tablesResult.tables!.map((t: any) => t.table_name).sort();
-          expect(tableNames).toEqual([
-            'categories', 'post_tags', 'posts', 'published_posts', 'tags', 'users'
-          ]);
+          const tableNames = tablesResult.objects!.map((t: any) => t.object_name).sort();
+          expect(tableNames).toEqual(["categories", "post_tags", "posts", "tags", "users"]);
 
           // Step 3: Describe users table
           const describeResult = await describeTableTool({
-            schema: 'testschema',
-            table: 'users'
+            schema: "testschema",
+            table: "users",
           });
           expect(describeResult.error).toBeUndefined();
           expect(describeResult.columns).toBeDefined();
           expect(describeResult.columns!.length).toBe(6);
 
           const columnNames = describeResult.columns!.map((c: any) => c.column_name);
-          expect(columnNames).toContain('id');
-          expect(columnNames).toContain('name');
-          expect(columnNames).toContain('email');
+          expect(columnNames).toContain("id");
+          expect(columnNames).toContain("name");
+          expect(columnNames).toContain("email");
 
-          // Step 4: Get constraints for users table
-          const constraintsResult = await getConstraintsTool({
-            schema: 'testschema',
-            table: 'users'
-          });
-          expect(constraintsResult.error).toBeUndefined();
-          expect(constraintsResult.constraints).toBeDefined();
-          expect(constraintsResult.constraints!.length).toBeGreaterThan(0);
+          // Step 4: Verify constraints from describe_table
+          expect(describeResult.constraints).toBeDefined();
+          expect(describeResult.constraints!.length).toBeGreaterThan(0);
 
           // Step 5: Query existing data
           const dataQuery = await queryTool({
-            sql: 'SELECT COUNT(*) as user_count FROM testschema.users'
+            sql: "SELECT COUNT(*) as user_count FROM testschema.users",
           });
           expect(dataQuery.error).toBeUndefined();
-          expect(dataQuery.rows![0].user_count).toBe('3');
+          expect(dataQuery.rows![0].user_count).toBe("3");
 
           // Step 6: Complex join query
           const joinQuery = await queryTool({
@@ -94,19 +86,18 @@ describe('Full Workflow Integration Tests', () => {
               LEFT JOIN testschema.posts p ON u.id = p.user_id
               GROUP BY u.id, u.name
               ORDER BY post_count DESC
-            `
+            `,
           });
           expect(joinQuery.error).toBeUndefined();
           expect(joinQuery.rows).toBeDefined();
           expect(joinQuery.rows!.length).toBe(3);
-
         } finally {
           await closeDb();
         }
       });
     });
 
-    test('should handle data manipulation operations', async () => {
+    test("should handle data manipulation operations", async () => {
       await withDocker(async () => {
         if (!testEnv) return;
 
@@ -119,7 +110,7 @@ describe('Full Workflow Integration Tests', () => {
               INSERT INTO testschema.users (name, email, age) 
               VALUES ('Integration Test User', 'integration@test.com', 25)
               RETURNING id, name
-            `
+            `,
           });
 
           expect(insertResult.error).toBeUndefined();
@@ -127,11 +118,11 @@ describe('Full Workflow Integration Tests', () => {
 
           if (insertResult.rows && insertResult.rows.length > 0) {
             userId = insertResult.rows[0].id;
-            expect(insertResult.rows[0].name).toBe('Integration Test User');
+            expect(insertResult.rows[0].name).toBe("Integration Test User");
           } else {
             // Fallback if RETURNING doesn't work
             const userQuery = await queryTool({
-              sql: "SELECT id FROM testschema.users WHERE email = 'integration@test.com'"
+              sql: "SELECT id FROM testschema.users WHERE email = 'integration@test.com'",
             });
             expect(userQuery.error).toBeUndefined();
             userId = userQuery.rows![0].id;
@@ -140,7 +131,7 @@ describe('Full Workflow Integration Tests', () => {
           // Update user using parameterized query
           const updateResult = await queryTool({
             sql: `UPDATE testschema.users SET age = 26 WHERE id = $1`,
-            parameters: [userId]
+            parameters: [userId],
           });
           expect(updateResult.error).toBeUndefined();
           expect(updateResult.rowCount).toBe(1);
@@ -148,7 +139,7 @@ describe('Full Workflow Integration Tests', () => {
           // Verify update using parameterized query
           const verifyUpdate = await queryTool({
             sql: `SELECT age FROM testschema.users WHERE id = $1`,
-            parameters: [userId]
+            parameters: [userId],
           });
           expect(verifyUpdate.error).toBeUndefined();
           expect(verifyUpdate.rows![0].age).toBe(26);
@@ -160,7 +151,7 @@ describe('Full Workflow Integration Tests', () => {
               VALUES ($1, $2, $3, $4)
               RETURNING id
             `,
-            parameters: [userId, 'Test Post', 'Integration test content', true]
+            parameters: [userId, "Test Post", "Integration test content", true],
           });
           expect(postInsert.error).toBeUndefined();
 
@@ -168,7 +159,7 @@ describe('Full Workflow Integration Tests', () => {
           if (postInsert.rows && postInsert.rows.length > 0) {
             const deletePost = await queryTool({
               sql: `DELETE FROM testschema.posts WHERE id = $1`,
-              parameters: [postInsert.rows[0].id]
+              parameters: [postInsert.rows[0].id],
             });
             expect(deletePost.error).toBeUndefined();
           }
@@ -176,59 +167,57 @@ describe('Full Workflow Integration Tests', () => {
           // Delete user using parameterized query
           const deleteUser = await queryTool({
             sql: `DELETE FROM testschema.users WHERE id = $1`,
-            parameters: [userId]
+            parameters: [userId],
           });
           expect(deleteUser.error).toBeUndefined();
           expect(deleteUser.rowCount).toBe(1);
-
         } finally {
           await closeDb();
         }
       });
     });
 
-    test('should handle error scenarios gracefully', async () => {
+    test("should handle error scenarios gracefully", async () => {
       await withDocker(async () => {
         if (!testEnv) return;
 
-        const { queryTool, describeTableTool, listTablesTool, closeDb } = 
-          await testEnv.getTools();
+        const { queryTool, describeTableTool, listObjectsTool, closeDb } = await testEnv.getTools();
 
         try {
           // Test invalid SQL
           const invalidQuery = await queryTool({
-            sql: 'INVALID SQL SYNTAX'
+            sql: "INVALID SQL SYNTAX",
           });
           expect(invalidQuery.error).toBeDefined();
-          expect(invalidQuery.error).toContain('SQL syntax error');
+          expect(invalidQuery.error).toContain("SQL syntax error");
 
           // Test constraint violation
           const duplicateEmail = await queryTool({
             sql: `
-              INSERT INTO testschema.users (name, email, age) 
+              INSERT INTO testschema.users (name, email, age)
               VALUES ('Duplicate', 'john@example.com', 25)
-            `
+            `,
           });
           expect(duplicateEmail.error).toBeDefined();
-          expect(duplicateEmail.error).toContain('Duplicate value');
+          expect(duplicateEmail.error).toContain("Duplicate value");
 
           // Test non-existent table
           const nonExistentTable = await describeTableTool({
-            schema: 'testschema',
-            table: 'nonexistent_table_12345'
+            schema: "testschema",
+            table: "nonexistent_table_12345",
           });
           expect(nonExistentTable.error).toBeUndefined();
           expect(nonExistentTable.columns).toBeDefined();
           expect(nonExistentTable.columns!.length).toBe(0);
 
           // Test non-existent schema
-          const nonExistentSchema = await listTablesTool({
-            schema: 'nonexistent_schema_12345'
+          const nonExistentSchema = await listObjectsTool({
+            type: "tables",
+            schema: "nonexistent_schema_12345",
           });
           expect(nonExistentSchema.error).toBeUndefined();
-          expect(nonExistentSchema.tables).toBeDefined();
-          expect(nonExistentSchema.tables!.length).toBe(0);
-
+          expect(nonExistentSchema.objects).toBeDefined();
+          expect(nonExistentSchema.objects!.length).toBe(0);
         } finally {
           await closeDb();
         }
@@ -236,8 +225,8 @@ describe('Full Workflow Integration Tests', () => {
     });
   });
 
-  describe('View and Complex Query Support', () => {
-    test('should work with database views', async () => {
+  describe("View and Complex Query Support", () => {
+    test("should work with database views", async () => {
       await withDocker(async () => {
         if (!testEnv) return;
 
@@ -246,7 +235,7 @@ describe('Full Workflow Integration Tests', () => {
         try {
           // Query the view
           const viewQuery = await queryTool({
-            sql: 'SELECT * FROM testschema.published_posts ORDER BY view_count DESC'
+            sql: "SELECT * FROM testschema.published_posts ORDER BY view_count DESC",
           });
           expect(viewQuery.error).toBeUndefined();
           expect(viewQuery.rows).toBeDefined();
@@ -254,24 +243,23 @@ describe('Full Workflow Integration Tests', () => {
 
           // Describe the view structure
           const viewStructure = await describeTableTool({
-            schema: 'testschema',
-            table: 'published_posts'
+            schema: "testschema",
+            table: "published_posts",
           });
           expect(viewStructure.error).toBeUndefined();
           expect(viewStructure.columns).toBeDefined();
 
           const viewColumns = viewStructure.columns!.map((c: any) => c.column_name);
-          expect(viewColumns).toContain('title');
-          expect(viewColumns).toContain('author_name');
-          expect(viewColumns).toContain('category_name');
-
+          expect(viewColumns).toContain("title");
+          expect(viewColumns).toContain("author_name");
+          expect(viewColumns).toContain("category_name");
         } finally {
           await closeDb();
         }
       });
     });
 
-    test('should handle complex queries with aggregations', async () => {
+    test("should handle complex queries with aggregations", async () => {
       await withDocker(async () => {
         if (!testEnv) return;
 
@@ -291,7 +279,7 @@ describe('Full Workflow Integration Tests', () => {
               GROUP BY c.id, c.name
               HAVING COUNT(p.id) > 0
               ORDER BY post_count DESC
-            `
+            `,
           });
 
           expect(aggregationQuery.error).toBeUndefined();
@@ -308,12 +296,11 @@ describe('Full Workflow Integration Tests', () => {
                 view_count - LAG(view_count) OVER (ORDER BY view_count DESC) as view_diff
               FROM testschema.posts
               WHERE published = true
-            `
+            `,
           });
 
           expect(windowQuery.error).toBeUndefined();
           expect(windowQuery.rows).toBeDefined();
-
         } finally {
           await closeDb();
         }

@@ -1,10 +1,11 @@
-import { Kysely, PostgresDialect } from "kysely";
-import { Pool, PoolConfig } from "pg";
 import * as dotenv from "dotenv";
+import { Kysely, PostgresDialect } from "kysely";
+import { Pool, type PoolConfig } from "pg";
 
 dotenv.config();
 
 export interface Database {
+  // biome-ignore lint/suspicious/noExplicitAny: required for Kysely dynamic schema access
   [key: string]: any;
 }
 
@@ -51,18 +52,13 @@ class DatabaseManager {
       database: process.env.DB_NAME || "postgres",
       maxConnections: parseInt(process.env.DB_POOL_MAX || "5", 10),
       idleTimeoutMs: parseInt(process.env.DB_IDLE_TIMEOUT || "5000", 10),
-      connectionTimeoutMs: parseInt(
-        process.env.DB_CONNECTION_TIMEOUT || "10000",
-        10
-      ),
+      connectionTimeoutMs: parseInt(process.env.DB_CONNECTION_TIMEOUT || "10000", 10),
       queryTimeoutMs: parseInt(process.env.DB_QUERY_TIMEOUT || "30000", 10),
       ssl: this.buildSSLConfig(),
     };
   }
 
-  private buildSSLConfig():
-    | boolean
-    | { rejectUnauthorized: boolean; ca?: string } {
+  private buildSSLConfig(): boolean | { rejectUnauthorized: boolean; ca?: string } {
     if (process.env.DB_SSL === "false") {
       return false;
     }
@@ -115,6 +111,7 @@ class DatabaseManager {
     this.pool.on("error", (err) => {
       console.error("Database pool error:", {
         message: err.message,
+        // biome-ignore lint/suspicious/noExplicitAny: pg error object has code property not in Error type
         code: (err as any).code,
         timestamp: new Date().toISOString(),
       });
@@ -158,8 +155,7 @@ class DatabaseManager {
 
       return { healthy: true };
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
       return {
         healthy: false,
         error: errorMessage,

@@ -1,4 +1,4 @@
-import { describe, test, expect } from "@jest/globals";
+import { describe, expect, test } from "@jest/globals";
 
 describe("Package Structure", () => {
   describe("Module Exports", () => {
@@ -54,17 +54,14 @@ describe("Package Structure", () => {
       expect(typeof queryTool).toBe("function");
     });
 
-    test("should export list tables tool function", async () => {
-      const { listTablesTool } = await import("../../src/tools/list");
-      expect(typeof listTablesTool).toBe("function");
+    test("should export list objects tool function", async () => {
+      const { listObjectsTool } = await import("../../src/tools/list");
+      expect(typeof listObjectsTool).toBe("function");
     });
 
-    test("should export describe table tools", async () => {
-      const { describeTableTool, getConstraintsTool } = await import(
-        "../../src/tools/describe"
-      );
+    test("should export describe table tool", async () => {
+      const { describeTableTool } = await import("../../src/tools/describe");
       expect(typeof describeTableTool).toBe("function");
-      expect(typeof getConstraintsTool).toBe("function");
     });
   });
 });
