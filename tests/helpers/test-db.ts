@@ -21,7 +21,6 @@ export interface TestEnvironment {
     queryTool: any;
     listObjectsTool: any;
     describeTableTool: any;
-    getConstraintsTool: any;
     closeDb: any;
   }>;
 }
@@ -74,10 +73,10 @@ export async function createTestEnvironment(): Promise<TestEnvironment> {
   const getTools = async () => {
     const { queryTool } = await import('../../src/tools/query');
     const { listObjectsTool } = await import('../../src/tools/list');
-    const { describeTableTool, getConstraintsTool } = await import('../../src/tools/describe');
+    const { describeTableTool } = await import('../../src/tools/describe');
     const { closeDb } = await import('../../src/db');
 
-    return { queryTool, listObjectsTool, describeTableTool, getConstraintsTool, closeDb };
+    return { queryTool, listObjectsTool, describeTableTool, closeDb };
   };
 
   return {

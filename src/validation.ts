@@ -60,15 +60,6 @@ export const ExplainQueryInputSchema = z.object({
   format: z.enum(['text', 'json', 'xml', 'yaml']).optional()
 });
 
-export const GetTableStatsInputSchema = z.object({
-  schema: z.string().min(1, "Schema name is required").max(63, "Schema name too long")
-    .regex(/^[a-zA-Z_][a-zA-Z0-9_]*$/, "Invalid schema name format"),
-  table: z.string().min(1).max(63)
-    .regex(/^[a-zA-Z_][a-zA-Z0-9_]*$/, "Invalid table name format")
-    .optional()
-});
-
-
 export function validateInput<T>(schema: z.ZodSchema<T>, input: unknown): { success: true; data: T } | { success: false; error: string } {
   try {
     const data = schema.parse(input);
@@ -95,4 +86,3 @@ export type ListObjectsInput = z.infer<typeof ListObjectsInputSchema>;
 export type ListSchemasInput = z.infer<typeof ListSchemasInputSchema>;
 export type ListIndexesInput = z.infer<typeof ListIndexesInputSchema>;
 export type ExplainQueryInput = z.infer<typeof ExplainQueryInputSchema>;
-export type GetTableStatsInput = z.infer<typeof GetTableStatsInputSchema>;

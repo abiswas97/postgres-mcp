@@ -30,7 +30,7 @@ describe('Full Workflow Integration Tests', () => {
       await withDocker(async () => {
         if (!testEnv) return;
 
-        const { queryTool, listObjectsTool, describeTableTool, getConstraintsTool, closeDb } =
+        const { queryTool, listObjectsTool, describeTableTool, closeDb } =
           await testEnv.getTools();
 
         try {
@@ -67,14 +67,9 @@ describe('Full Workflow Integration Tests', () => {
           expect(columnNames).toContain('name');
           expect(columnNames).toContain('email');
 
-          // Step 4: Get constraints for users table
-          const constraintsResult = await getConstraintsTool({
-            schema: 'testschema',
-            table: 'users'
-          });
-          expect(constraintsResult.error).toBeUndefined();
-          expect(constraintsResult.constraints).toBeDefined();
-          expect(constraintsResult.constraints!.length).toBeGreaterThan(0);
+          // Step 4: Verify constraints from describe_table
+          expect(describeResult.constraints).toBeDefined();
+          expect(describeResult.constraints!.length).toBeGreaterThan(0);
 
           // Step 5: Query existing data
           const dataQuery = await queryTool({

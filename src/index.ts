@@ -14,15 +14,14 @@ import {
   ListSchemasInputSchema,
   ListIndexesInputSchema,
   ExplainQueryInputSchema,
-  GetTableStatsInputSchema,
   validateInput
 } from "./validation.js";
 import { queryTool } from "./tools/query.js";
-import { describeTableTool, getConstraintsTool } from "./tools/describe.js";
+import { describeTableTool } from "./tools/describe.js";
 import { listObjectsTool } from "./tools/list.js";
 import { listSchemasTool } from "./tools/schemas.js";
 import { listIndexesTool } from "./tools/indexes.js";
-import { explainQueryTool, getTableStatsTool } from "./tools/performance.js";
+import { explainQueryTool } from "./tools/performance.js";
 import { closeDb } from "./db.js";
 
 // Helper to extract inline schema from zodToJsonSchema output
@@ -53,18 +52,13 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "describe_table",
-        description: "Get the structure of a database table",
+        description: "Get table structure including columns, constraints, and size statistics",
         inputSchema: getInlineSchema(DescribeTableInputSchema, "DescribeTableInput"),
       },
       {
         name: "list_objects",
         description: "List tables, views, or functions in a schema",
         inputSchema: getInlineSchema(ListObjectsInputSchema, "ListObjectsInput"),
-      },
-      {
-        name: "get_constraints",
-        description: "Get constraints for a table",
-        inputSchema: getInlineSchema(DescribeTableInputSchema, "DescribeTableInput"),
       },
       {
         name: "list_schemas",
@@ -80,11 +74,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         name: "explain_query",
         description: "Get query execution plan (EXPLAIN)",
         inputSchema: getInlineSchema(ExplainQueryInputSchema, "ExplainQueryInput"),
-      },
-      {
-        name: "get_table_stats",
-        description: "Get table statistics and size information",
-        inputSchema: getInlineSchema(GetTableStatsInputSchema, "GetTableStatsInput"),
       },
     ],
   };
@@ -154,15 +143,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return createSafeToolResponse(result);
       }
 
-      case "get_constraints": {
-        const validation = validateInput(DescribeTableInputSchema, args);
-        if (!validation.success) {
-          return createErrorResponse(`Input validation failed: ${validation.error}`);
-        }
-        const result = await getConstraintsTool(validation.data);
-        return createSafeToolResponse(result);
-      }
-
       case "list_schemas": {
         const validation = validateInput(ListSchemasInputSchema, args);
         if (!validation.success) {
@@ -189,16 +169,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const result = await explainQueryTool(validation.data);
         return createSafeToolResponse(result);
       }
-
-      case "get_table_stats": {
-        const validation = validateInput(GetTableStatsInputSchema, args);
-        if (!validation.success) {
-          return createErrorResponse(`Input validation failed: ${validation.error}`);
-        }
-        const result = await getTableStatsTool(validation.data);
-        return createSafeToolResponse(result);
-      }
-
 
       default:
         throw new Error(`Unknown tool: ${name}`);

@@ -59,12 +59,11 @@ describe("Package Structure", () => {
       expect(typeof listObjectsTool).toBe("function");
     });
 
-    test("should export describe table tools", async () => {
-      const { describeTableTool, getConstraintsTool } = await import(
+    test("should export describe table tool", async () => {
+      const { describeTableTool } = await import(
         "../../src/tools/describe"
       );
       expect(typeof describeTableTool).toBe("function");
-      expect(typeof getConstraintsTool).toBe("function");
     });
   });
 });

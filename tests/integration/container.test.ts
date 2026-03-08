@@ -38,12 +38,12 @@ function createTestTools(connectionInfo: any) {
     getTools: async () => {
       const { queryTool } = await import("../../src/tools/query");
       const { listObjectsTool } = await import("../../src/tools/list");
-      const { describeTableTool, getConstraintsTool } = await import(
+      const { describeTableTool } = await import(
         "../../src/tools/describe"
       );
       const { listSchemasTool } = await import("../../src/tools/schemas");
       const { listIndexesTool } = await import("../../src/tools/indexes");
-      const { explainQueryTool, getTableStatsTool } = await import(
+      const { explainQueryTool } = await import(
         "../../src/tools/performance"
       );
       const { closeDb } = await import("../../src/db");
@@ -51,11 +51,9 @@ function createTestTools(connectionInfo: any) {
         queryTool,
         listObjectsTool,
         describeTableTool,
-        getConstraintsTool,
         listSchemasTool,
         listIndexesTool,
         explainQueryTool,
-        getTableStatsTool,
         closeDb,
       };
     },
@@ -144,11 +142,9 @@ describe("Testcontainer Integration Tests", () => {
         queryTool,
         listObjectsTool,
         describeTableTool,
-        getConstraintsTool,
         listSchemasTool,
         listIndexesTool,
         explainQueryTool,
-        getTableStatsTool,
         closeDb,
       } = await testTools.getTools();
 
@@ -185,22 +181,15 @@ describe("Testcontainer Integration Tests", () => {
       expect(columnNames).toContain("name");
       expect(columnNames).toContain("email");
 
-      // Test 4: Get constraints
-      const constraintsResult = await getConstraintsTool({
-        schema: "testschema",
-        table: "users",
-      });
-      expect(constraintsResult.error).toBeUndefined();
-      expect(constraintsResult.constraints).toBeDefined();
-      expect(constraintsResult.constraints!.length).toBeGreaterThan(0);
+      // Test 4: Verify constraints from describe_table
+      expect(describeResult.constraints).toBeDefined();
+      expect(describeResult.constraints!.length).toBeGreaterThan(0);
 
-      const constraintTypes = constraintsResult.constraints!.map(
+      const constraintTypes = describeResult.constraints!.map(
         (c) => c.constraint_type
       );
-      // Check if we have any constraints (the exact type format may vary)
       expect(constraintTypes.length).toBeGreaterThan(0);
-      // Check that we get expected constraint definitions
-      const constraintDefs = constraintsResult.constraints!.map(
+      const constraintDefs = describeResult.constraints!.map(
         (c) => c.constraint_definition
       );
       expect(constraintDefs.some((def) => def.includes("PRIMARY KEY"))).toBe(
@@ -272,28 +261,12 @@ describe("Testcontainer Integration Tests", () => {
       expect(explainAnalyzeResult.error).toBeUndefined();
       expect(explainAnalyzeResult.plan).toBeDefined();
 
-      // Test 11: Get table stats
-      const statsResult = await getTableStatsTool({ schema: "testschema" });
-      expect(statsResult.error).toBeUndefined();
-      expect(statsResult.stats).toBeDefined();
-      expect(statsResult.stats!.length).toBeGreaterThan(0);
-
-      const userStats = statsResult.stats!.find(
-        (s) => s.table_name === "users"
-      );
-      expect(userStats).toBeDefined();
-      expect(userStats!.row_count).toBeGreaterThanOrEqual(0);
-      expect(userStats!.table_size_bytes).toBeGreaterThan(0);
-
-      // Test 12: Get table stats for specific table
-      const userStatsResult = await getTableStatsTool({
-        schema: "testschema",
-        table: "users",
-      });
-      expect(userStatsResult.error).toBeUndefined();
-      expect(userStatsResult.stats).toBeDefined();
-      expect(userStatsResult.stats!.length).toBe(1);
-      expect(userStatsResult.stats![0].table_name).toBe("users");
+      // Test 11: Verify stats from describe_table
+      expect(describeResult.stats).toBeDefined();
+      expect(describeResult.stats).not.toBeNull();
+      expect(describeResult.stats!.table_name).toBe("users");
+      expect(describeResult.stats!.row_count).toBeGreaterThanOrEqual(0);
+      expect(describeResult.stats!.table_size_bytes).toBeGreaterThan(0);
 
       // Test 13: List views
       const viewsResult = await listObjectsTool({ type: "views", schema: "testschema" });
