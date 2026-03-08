@@ -1,5 +1,5 @@
 {
-  "name": "postgres-mcp-server",
+  "name": "postgres",
   "version": "2.0.0",
   "description": "PostgreSQL database access with health diagnostics, slow query analysis, and connection monitoring",
   "components": {

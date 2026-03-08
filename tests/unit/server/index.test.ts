@@ -135,7 +135,7 @@ const TOOL_DEFINITIONS = [
 
 function setupTestServer(): Server {
   const server = new Server(
-    { name: "postgres-mcp-server-test", version: "2.0.0" },
+    { name: "postgres-mcp-test", version: "2.0.0" },
     { capabilities: { tools: {} } },
   );
 

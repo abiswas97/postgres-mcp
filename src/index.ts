@@ -38,7 +38,7 @@ function getInlineSchema(zodSchema: any, name: string) {
 
 const server = new Server(
   {
-    name: "postgres-mcp-server",
+    name: "postgres-mcp",
     version: "2.0.0",
   },
   {

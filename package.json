@@ -1,11 +1,11 @@
 {
-  "name": "postgres-mcp-server",
+  "name": "@abiswas97/postgres-mcp",
   "version": "2.0.0",
-  "description": "Model Context Protocol server for PostgreSQL database operations",
+  "description": "PostgreSQL MCP server with diagnostics, slow query analysis, and connection monitoring",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "postgres-mcp-server": "dist/index.js"
+    "postgres-mcp": "dist/index.js"
   },
   "files": [
     "dist/**/*",
@@ -47,11 +47,11 @@
   "license": "ISC",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/abiswas97/postgres-mcp-server.git"
+    "url": "git+https://github.com/abiswas97/postgres-mcp.git"
   },
-  "homepage": "https://github.com/abiswas97/postgres-mcp-server#readme",
+  "homepage": "https://github.com/abiswas97/postgres-mcp#readme",
   "bugs": {
-    "url": "https://github.com/abiswas97/postgres-mcp-server/issues"
+    "url": "https://github.com/abiswas97/postgres-mcp/issues"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^0.6.0",

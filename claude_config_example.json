@@ -1,8 +1,8 @@
 {
   "mcpServers": {
-    "postgres-mcp-server": {
+    "postgres": {
       "command": "npx",
-      "args": ["postgres-mcp-server"],
+      "args": ["@abiswas97/postgres-mcp@latest"],
       "env": {
         "DB_HOST": "127.0.0.1",
         "DB_PORT": "5432",
