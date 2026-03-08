@@ -1,0 +1,37 @@
+tests/unit/package.test.ts
+  ec6a4b0c5708d0ff 57-59
+src/validation.ts
+  ec6a4b0c5708d0ff 36-37,94
+tests/integration/container.test.ts
+  ec6a4b0c5708d0ff 40,52,145,164,166-167,169,172,299,301,303,306-307,310,313,315
+tests/helpers/test-db.ts
+  ec6a4b0c5708d0ff 22,76,79-80
+tests/integration/full-workflow.test.ts
+  ec6a4b0c5708d0ff 33,46,48-49,51,194,225-226,230-231
+src/index.ts
+  ec6a4b0c5708d0ff 13,22,60-62,148-149,153
+src/tools/list.ts
+  ec6a4b0c5708d0ff 4,8-12,15-16,20-30,34-39,42-47,53,55-60,63-98,101,103,105,114,116-126,128
+tests/unit/tools/list.test.ts
+  ec6a4b0c5708d0ff 1,7,19,25-33,39-40,42-50,54-56,58-59,62-64,71-74,76-81,85,94-97,103-107,109,111-114,116-135,137-138,141-144,146-147,155,160,162-163,166,172,177,179,181
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.8",
+  "base_commit_sha": "2c920f748a980924f6bc608763f740884e6f13a9",
+  "prompts": {
+    "ec6a4b0c5708d0ff": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5e5a7bfb-b4bd-4cc1-a782-7fe0bdfa4265",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Avi <avishek.biswas.1997@gmail.com>",
+      "messages": [],
+      "total_additions": 740,
+      "total_deletions": 381,
+      "accepted_lines": 704,
+      "overriden_lines": 0
+    }
+  }
+}
