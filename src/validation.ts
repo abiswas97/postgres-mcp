@@ -76,6 +76,13 @@ export const GetConnectionsInputSchema = z.object({
 
 export type GetConnectionsInput = z.infer<typeof GetConnectionsInputSchema>;
 
+export const DiagnoseDatabaseInputSchema = z.object({
+  include_queries: z.boolean().optional(),
+  include_connections: z.boolean().optional()
+});
+
+export type DiagnoseDatabaseInput = z.infer<typeof DiagnoseDatabaseInputSchema>;
+
 export function validateInput<T>(schema: z.ZodSchema<T>, input: unknown): { success: true; data: T } | { success: false; error: string } {
   try {
     const data = schema.parse(input);
