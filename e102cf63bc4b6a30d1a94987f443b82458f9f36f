@@ -1,0 +1,23 @@
+package.json
+  ec6a4b0c5708d0ff 25-30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.8",
+  "base_commit_sha": "e102cf63bc4b6a30d1a94987f443b82458f9f36f",
+  "prompts": {
+    "ec6a4b0c5708d0ff": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5e5a7bfb-b4bd-4cc1-a782-7fe0bdfa4265",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Avi <avishek.biswas.1997@gmail.com>",
+      "messages": [],
+      "total_additions": 7,
+      "total_deletions": 1,
+      "accepted_lines": 471,
+      "overriden_lines": 0
+    }
+  }
+}
