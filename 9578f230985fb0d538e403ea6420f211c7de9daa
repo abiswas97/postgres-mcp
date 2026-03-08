@@ -1,0 +1,23 @@
+.env.example
+  584ba5741e463db4 31-32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.8",
+  "base_commit_sha": "9578f230985fb0d538e403ea6420f211c7de9daa",
+  "prompts": {
+    "584ba5741e463db4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d81dc5e8-f3ce-4ae7-9729-2c7bae5a2683",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "Avi <avishek.biswas.1997@gmail.com>",
+      "messages": [],
+      "total_additions": 2,
+      "total_deletions": 0,
+      "accepted_lines": 2,
+      "overriden_lines": 0
+    }
+  }
+}
