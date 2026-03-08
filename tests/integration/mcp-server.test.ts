@@ -38,12 +38,12 @@ describeWithDocker("E2E MCP Client Integration Tests", () => {
   let client: Client;
   let server: Server;
   let containerSetup: Awaited<ReturnType<typeof setupTestContainer>>;
-  let closeDb: () => Promise<void>;
+  let closeDb: (() => Promise<void>) | undefined;
+  let originalEnv: NodeJS.ProcessEnv;
 
   beforeAll(async () => {
+    originalEnv = { ...process.env };
     containerSetup = await setupTestContainer();
-
-    const originalEnv = { ...process.env };
     process.env.DB_HOST = containerSetup.connectionInfo.host;
     process.env.DB_PORT = containerSetup.connectionInfo.port.toString();
     process.env.DB_USER = containerSetup.connectionInfo.username;
@@ -192,6 +192,7 @@ describeWithDocker("E2E MCP Client Integration Tests", () => {
     try { await server?.close(); } catch {}
     try { await closeDb?.(); } catch {}
     await teardownTestContainer();
+    process.env = originalEnv;
   }, 30000);
 
   test("listTools returns all 10 tools", async () => {
