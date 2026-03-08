@@ -8,7 +8,13 @@ export default {
     '^.+\\.ts$': ['ts-jest', {
       useESM: true,
     }],
+    '^.+\\.js$': ['ts-jest', {
+      useESM: true,
+    }],
   },
+  transformIgnorePatterns: [
+    'node_modules/(?!(@modelcontextprotocol/sdk|zod-to-json-schema)/)',
+  ],
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
   },
