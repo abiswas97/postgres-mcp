@@ -1,0 +1,43 @@
+src/tools/diagnostics.ts
+  ec6a4b0c5708d0ff 20,138,171,190,210,233
+src/index.ts
+  ec6a4b0c5708d0ff 33,111
+src/tools/query.ts
+  ec6a4b0c5708d0ff 1,194,248,258
+src/tools/slow-queries.ts
+  ec6a4b0c5708d0ff 142
+src/tools/search.ts
+  ec6a4b0c5708d0ff 1-2,24,48,70,92,118,140,167
+src/tools/performance.ts
+  ec6a4b0c5708d0ff 6
+src/db.ts
+  ec6a4b0c5708d0ff 8,114
+src/tools/indexes.ts
+  ec6a4b0c5708d0ff 1,33
+biome.json
+  ec6a4b0c5708d0ff 9-12,32-45
+src/tools/list.ts
+  ec6a4b0c5708d0ff 1-2,17,39,60
+src/tools/connections.ts
+  ec6a4b0c5708d0ff 56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.8",
+  "base_commit_sha": "78856add4b30429656dde9d2fd0a7792802e1220",
+  "prompts": {
+    "ec6a4b0c5708d0ff": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5e5a7bfb-b4bd-4cc1-a782-7fe0bdfa4265",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Avi <avishek.biswas.1997@gmail.com>",
+      "messages": [],
+      "total_additions": 60,
+      "total_deletions": 33,
+      "accepted_lines": 516,
+      "overriden_lines": 0
+    }
+  }
+}
