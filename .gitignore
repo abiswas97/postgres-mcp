@@ -156,3 +156,6 @@ build/
 .claude
 CLAUDE.md
 CLAUDE.local.md
+
+# Generated docs artifacts
+# docs/plans/
