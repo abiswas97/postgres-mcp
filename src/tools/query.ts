@@ -9,24 +9,30 @@ function isReadOnlyMode(): boolean {
   return process.env.READ_ONLY !== "false";
 }
 
-// Dangerous operations that are never allowed
-const DANGEROUS_OPERATIONS = [
-  "DROP",
-  "CREATE",
-  "ALTER",
-  "TRUNCATE",
+function isAllowDdlMode(): boolean {
+  return !isReadOnlyMode() && process.env.ALLOW_DDL === "true";
+}
+
+const PERMANENTLY_BLOCKED = [
   "GRANT",
   "REVOKE",
-  "VACUUM",
-  "ANALYZE",
-  "CLUSTER",
-  "REINDEX",
   "COPY",
   "BACKUP",
   "RESTORE",
   "ATTACH",
   "DETACH",
   "PRAGMA",
+];
+
+const DDL_OPERATIONS = [
+  "CREATE",
+  "ALTER",
+  "DROP",
+  "TRUNCATE",
+  "REINDEX",
+  "VACUUM",
+  "ANALYZE",
+  "CLUSTER",
 ];
 
 function validateSqlSafety(sqlString: string): {
@@ -47,13 +53,25 @@ function validateSqlSafety(sqlString: string): {
 
   const upperSql = trimmedSql.toUpperCase();
 
-  for (const dangerous of DANGEROUS_OPERATIONS) {
-    const regex = new RegExp(`\\b${dangerous}\\b`, "i");
+  for (const blocked of PERMANENTLY_BLOCKED) {
+    const regex = new RegExp(`\\b${blocked}\\b`, "i");
     if (regex.test(upperSql)) {
       return {
         isValid: false,
-        error: `Dangerous operation '${dangerous}' is not allowed`,
+        error: `Operation '${blocked}' is not allowed`,
       };
+    }
+  }
+
+  if (!isAllowDdlMode()) {
+    for (const ddl of DDL_OPERATIONS) {
+      const regex = new RegExp(`\\b${ddl}\\b`, "i");
+      if (regex.test(upperSql)) {
+        return {
+          isValid: false,
+          error: `DDL operation '${ddl}' requires READ_ONLY=false and ALLOW_DDL=true`,
+        };
+      }
     }
   }
 
@@ -70,7 +88,6 @@ function validateSqlSafety(sqlString: string): {
       };
     }
   } else {
-    // Even in write mode, validate UPDATE and DELETE have WHERE clauses
     if (upperSql.includes("UPDATE") || upperSql.includes("DELETE")) {
       if (!validateWhereClause(upperSql)) {
         return {

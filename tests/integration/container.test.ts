@@ -470,13 +470,13 @@ describeWithDocker("Testcontainer Integration Tests", () => {
         sql: `DROP TABLE testschema.users`,
       });
       expect(dropQuery.error).toBeDefined();
-      expect(dropQuery.error).toContain("not allowed");
+      expect(dropQuery.error).toMatch(/not allowed|requires READ_ONLY=false and ALLOW_DDL=true/);
 
       const createQuery = await queryTool({
         sql: `CREATE TABLE test_table (id INT)`,
       });
       expect(createQuery.error).toBeDefined();
-      expect(createQuery.error).toContain("not allowed");
+      expect(createQuery.error).toMatch(/not allowed|requires READ_ONLY=false and ALLOW_DDL=true/);
 
       const largeScanQuery = await queryTool({
         sql: "SELECT * FROM testschema.users",
@@ -606,7 +606,7 @@ describeWithDocker("Testcontainer Integration Tests", () => {
       for (const operation of dangerousOps) {
         const result = await queryTool({ sql: operation });
         expect(result.error).toBeDefined();
-        expect(result.error).toContain("not allowed");
+        expect(result.error).toMatch(/not allowed|requires READ_ONLY=false and ALLOW_DDL=true/);
       }
 
       const verifyResult = await queryTool({

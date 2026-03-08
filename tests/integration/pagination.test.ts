@@ -421,7 +421,7 @@ describe("Pagination Integration Tests", () => {
           });
 
           expect(result.error).toBeDefined();
-          expect(result.error).toContain("not allowed");
+          expect(result.error).toMatch(/not allowed|requires READ_ONLY=false and ALLOW_DDL=true/);
 
           await closeDb();
         } finally {

@@ -156,7 +156,7 @@ describe("Query Tool READ_ONLY Mode Tests", () => {
       });
 
       expect(result.error).toBeDefined();
-      expect(result.error).toContain("not allowed");
+      expect(result.error).toMatch(/not allowed|requires READ_ONLY=false and ALLOW_DDL=true/);
     });
 
     test("should handle case-insensitive queries in read-only mode", async () => {
@@ -298,7 +298,7 @@ describe("Query Tool READ_ONLY Mode Tests", () => {
       });
 
       expect(result.error).toBeDefined();
-      expect(result.error).toContain("not allowed");
+      expect(result.error).toMatch(/not allowed|requires READ_ONLY=false and ALLOW_DDL=true/);
     });
 
     test("should allow parameterized write queries in write mode", async () => {

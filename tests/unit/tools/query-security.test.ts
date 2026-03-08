@@ -66,7 +66,7 @@ describe("Query Tool Security Tests", () => {
         });
 
         expect(result.error).toBeDefined();
-        expect(result.error).toContain("not allowed");
+        expect(result.error).toMatch(/not allowed|requires READ_ONLY=false and ALLOW_DDL=true/);
         expect(result.rows).toBeUndefined();
         expect(result.rowCount).toBeUndefined();
       });
@@ -79,7 +79,7 @@ describe("Query Tool Security Tests", () => {
         });
 
         expect(result.error).toBeDefined();
-        expect(result.error).toContain("not allowed");
+        expect(result.error).toMatch(/not allowed|requires READ_ONLY=false and ALLOW_DDL=true/);
       });
 
       test(`should block ${operation} operations in mixed case`, async () => {
@@ -95,7 +95,7 @@ describe("Query Tool Security Tests", () => {
         });
 
         expect(result.error).toBeDefined();
-        expect(result.error).toContain("not allowed");
+        expect(result.error).toMatch(/not allowed|requires READ_ONLY=false and ALLOW_DDL=true/);
       });
     });
 
@@ -107,7 +107,7 @@ describe("Query Tool Security Tests", () => {
       });
 
       expect(result.error).toBeDefined();
-      expect(result.error).toContain("not allowed");
+      expect(result.error).toMatch(/not allowed|requires READ_ONLY=false and ALLOW_DDL=true/);
     });
 
     test("should block dangerous operations with comments", async () => {
@@ -118,7 +118,7 @@ describe("Query Tool Security Tests", () => {
       });
 
       expect(result.error).toBeDefined();
-      expect(result.error).toContain("not allowed");
+      expect(result.error).toMatch(/not allowed|requires READ_ONLY=false and ALLOW_DDL=true/);
     });
 
     test("should block multiple dangerous operations", async () => {
@@ -129,7 +129,7 @@ describe("Query Tool Security Tests", () => {
       });
 
       expect(result.error).toBeDefined();
-      expect(result.error).toContain("not allowed");
+      expect(result.error).toMatch(/not allowed|requires READ_ONLY=false and ALLOW_DDL=true/);
     });
   });
 
