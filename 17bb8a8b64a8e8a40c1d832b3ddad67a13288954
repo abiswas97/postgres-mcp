@@ -1,0 +1,23 @@
+docs/plans/2026-03-09-ci-improvements-plan.md
+  ec6a4b0c5708d0ff 1-286
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.8",
+  "base_commit_sha": "17bb8a8b64a8e8a40c1d832b3ddad67a13288954",
+  "prompts": {
+    "ec6a4b0c5708d0ff": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5e5a7bfb-b4bd-4cc1-a782-7fe0bdfa4265",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Avi <avishek.biswas.1997@gmail.com>",
+      "messages": [],
+      "total_additions": 286,
+      "total_deletions": 0,
+      "accepted_lines": 755,
+      "overriden_lines": 0
+    }
+  }
+}
