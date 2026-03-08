@@ -1,4 +1,4 @@
-import { sql } from "kysely";
+import { type QueryResult, sql } from "kysely";
 import { getDb } from "../db.js";
 import { QueryInputSchema, type QueryOutput, validateInput } from "../validation.js";
 
@@ -191,7 +191,7 @@ export async function queryTool(input: unknown): Promise<QueryOutput> {
         actualOffset,
       } = applyPagination(trimmedSql, validatedInput.pageSize, validatedInput.offset);
 
-      let result;
+      let result: QueryResult<unknown>;
       if (validatedInput.parameters && validatedInput.parameters.length > 0) {
         for (const param of validatedInput.parameters) {
           if (
@@ -245,7 +245,7 @@ export async function queryTool(input: unknown): Promise<QueryOutput> {
       const hasMore = result.rows.length === actualPageSize;
 
       return {
-        rows: result.rows as Record<string, any>[],
+        rows: result.rows as Record<string, unknown>[],
         rowCount: result.rows.length,
         pagination: {
           hasMore,
@@ -255,7 +255,7 @@ export async function queryTool(input: unknown): Promise<QueryOutput> {
       };
     } else {
       // For write operations (when not in read-only mode)
-      let result;
+      let result: QueryResult<unknown>;
       if (validatedInput.parameters && validatedInput.parameters.length > 0) {
         for (const param of validatedInput.parameters) {
           if (

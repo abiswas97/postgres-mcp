@@ -139,6 +139,7 @@ export async function getSlowQueriesTool(input: unknown): Promise<GetSlowQueries
       );
       const result = await query.execute(db);
       rows = result.rows;
+      // biome-ignore lint/suspicious/noExplicitAny: accessing message property on unknown error shape
     } catch (err: any) {
       if (err?.message?.includes("column") && err?.message?.includes("does not exist")) {
         const query = buildStatementsQuery(

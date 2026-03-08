@@ -3,6 +3,7 @@ import { getDb } from "../db.js";
 import { ExplainQueryInputSchema, validateInput } from "../validation.js";
 
 export interface ExplainQueryOutput {
+  // biome-ignore lint/suspicious/noExplicitAny: EXPLAIN output is arbitrary nested JSON from PostgreSQL
   plan?: any[];
   error?: string;
 }

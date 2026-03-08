@@ -1,5 +1,5 @@
-import { sql } from "kysely";
-import { getDb } from "../db.js";
+import { type Kysely, sql } from "kysely";
+import { type Database, getDb } from "../db.js";
 import { ListObjectsInputSchema, validateInput } from "../validation.js";
 
 export interface ObjectInfo {
@@ -14,7 +14,7 @@ export interface ListObjectsOutput {
   error?: string;
 }
 
-async function listTables(db: any, schema: string): Promise<ObjectInfo[]> {
+async function listTables(db: Kysely<Database>, schema: string): Promise<ObjectInfo[]> {
   const query = sql<{ table_name: string; table_type: string; table_schema: string }>`
     SELECT
       table_name,
@@ -36,7 +36,7 @@ async function listTables(db: any, schema: string): Promise<ObjectInfo[]> {
   }));
 }
 
-async function listViews(db: any, schema: string): Promise<ObjectInfo[]> {
+async function listViews(db: Kysely<Database>, schema: string): Promise<ObjectInfo[]> {
   const query = sql<{ table_schema: string; table_name: string; view_definition: string }>`
     SELECT
       table_schema,
@@ -57,7 +57,7 @@ async function listViews(db: any, schema: string): Promise<ObjectInfo[]> {
   }));
 }
 
-async function listFunctions(db: any, schema: string): Promise<ObjectInfo[]> {
+async function listFunctions(db: Kysely<Database>, schema: string): Promise<ObjectInfo[]> {
   const query = sql<{
     schema_name: string;
     function_name: string;

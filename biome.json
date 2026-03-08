@@ -6,14 +6,15 @@
     "indentWidth": 2,
     "lineWidth": 100
   },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double"
+    }
+  },
   "linter": {
     "enabled": true,
     "rules": {
       "recommended": true,
-      "suspicious": {
-        "noExplicitAny": "off",
-        "noImplicitAnyLet": "off"
-      },
       "style": {
         "noNonNullAssertion": "off"
       }
@@ -28,5 +29,18 @@
   },
   "files": {
     "includes": ["src/**", "tests/**"]
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["tests/**"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noExplicitAny": "off",
+            "noImplicitAnyLet": "off"
+          }
+        }
+      }
+    }
+  ]
 }

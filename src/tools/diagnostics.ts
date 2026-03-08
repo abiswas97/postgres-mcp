@@ -17,6 +17,7 @@ type CheckStatus = "healthy" | "warning" | "critical";
 
 interface CheckResult {
   status: CheckStatus;
+  // biome-ignore lint/suspicious/noExplicitAny: CheckResult carries heterogeneous diagnostic fields
   [key: string]: any;
 }
 
@@ -134,6 +135,7 @@ async function checkLongRunningQueries(): Promise<CheckResult> {
 
 async function checkBlockingLocks(): Promise<CheckResult> {
   const db = getDb();
+  // biome-ignore lint/suspicious/noExplicitAny: lock chain rows are heterogeneous pg_locks join result
   const result = await sql<any>`
     SELECT
       blocked.pid as blocked_pid,
@@ -166,6 +168,7 @@ async function checkBlockingLocks(): Promise<CheckResult> {
 
 async function checkVacuumHealth(): Promise<CheckResult> {
   const db = getDb();
+  // biome-ignore lint/suspicious/noExplicitAny: pg_stat_user_tables vacuum fields are dynamic
   const result = await sql<any>`
     SELECT schemaname, relname as table_name,
       n_dead_tup, n_live_tup,
@@ -184,6 +187,7 @@ async function checkVacuumHealth(): Promise<CheckResult> {
 
 async function checkUnusedIndexes(): Promise<CheckResult> {
   const db = getDb();
+  // biome-ignore lint/suspicious/noExplicitAny: pg_stat_user_indexes unused index fields are dynamic
   const result = await sql<any>`
     SELECT schemaname, relname as table_name,
       indexrelname as index_name,
@@ -203,6 +207,7 @@ async function checkUnusedIndexes(): Promise<CheckResult> {
 
 async function checkDuplicateIndexes(): Promise<CheckResult> {
   const db = getDb();
+  // biome-ignore lint/suspicious/noExplicitAny: duplicate index join result has dynamic pg_catalog fields
   const result = await sql<any>`
     SELECT
       n.nspname as schema_name,
@@ -225,6 +230,7 @@ async function checkDuplicateIndexes(): Promise<CheckResult> {
 
 async function checkSequenceHealth(): Promise<CheckResult> {
   const db = getDb();
+  // biome-ignore lint/suspicious/noExplicitAny: pg_sequences fields include dynamic numeric values
   const result = await sql<any>`
     SELECT schemaname, sequencename as name,
       last_value, max_value,

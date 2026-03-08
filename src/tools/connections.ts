@@ -53,6 +53,7 @@ export async function getConnectionsTool(input: unknown): Promise<GetConnections
 
     const maxConnections = maxConnResult.rows[0]?.max_connections ?? 100;
 
+    // biome-ignore lint/suspicious/noExplicitAny: pg_stat_activity columns cast to ConnectionInfo downstream
     const connectionsResult = await sql<any>`
       SELECT
         pid,

@@ -1,5 +1,5 @@
-import { sql } from "kysely";
-import { getDb } from "../db.js";
+import { type Kysely, sql } from "kysely";
+import { type Database, getDb } from "../db.js";
 import { SearchObjectsInputSchema, validateInput } from "../validation.js";
 
 export interface SearchResult {
@@ -21,19 +21,19 @@ const ALL_OBJECT_TYPES = ["table", "view", "column", "function", "index", "const
 const _SYSTEM_SCHEMAS = ["pg_catalog", "information_schema", "pg_toast"];
 
 async function searchTables(
-  db: any,
+  db: Kysely<Database>,
   likePattern: string,
   schemas: string[] | undefined,
 ): Promise<SearchResult[]> {
   const query = schemas
-    ? sql<any>`
+    ? sql<SearchResult>`
         SELECT 'table' as object_type, table_schema as schema_name, NULL as table_name, table_name as object_name, table_type as details
         FROM information_schema.tables
         WHERE table_type = 'BASE TABLE'
           AND LOWER(table_name) LIKE LOWER(${likePattern})
           AND table_schema = ANY(${schemas})
       `
-    : sql<any>`
+    : sql<SearchResult>`
         SELECT 'table' as object_type, table_schema as schema_name, NULL as table_name, table_name as object_name, table_type as details
         FROM information_schema.tables
         WHERE table_type = 'BASE TABLE'
@@ -45,18 +45,18 @@ async function searchTables(
 }
 
 async function searchViews(
-  db: any,
+  db: Kysely<Database>,
   likePattern: string,
   schemas: string[] | undefined,
 ): Promise<SearchResult[]> {
   const query = schemas
-    ? sql<any>`
+    ? sql<SearchResult>`
         SELECT 'view' as object_type, table_schema as schema_name, NULL as table_name, table_name as object_name, LEFT(view_definition, 100) as details
         FROM information_schema.views
         WHERE LOWER(table_name) LIKE LOWER(${likePattern})
           AND table_schema = ANY(${schemas})
       `
-    : sql<any>`
+    : sql<SearchResult>`
         SELECT 'view' as object_type, table_schema as schema_name, NULL as table_name, table_name as object_name, LEFT(view_definition, 100) as details
         FROM information_schema.views
         WHERE LOWER(table_name) LIKE LOWER(${likePattern})
@@ -67,18 +67,18 @@ async function searchViews(
 }
 
 async function searchColumns(
-  db: any,
+  db: Kysely<Database>,
   likePattern: string,
   schemas: string[] | undefined,
 ): Promise<SearchResult[]> {
   const query = schemas
-    ? sql<any>`
+    ? sql<SearchResult>`
         SELECT 'column' as object_type, table_schema as schema_name, table_name, column_name as object_name, data_type as details
         FROM information_schema.columns
         WHERE LOWER(column_name) LIKE LOWER(${likePattern})
           AND table_schema = ANY(${schemas})
       `
-    : sql<any>`
+    : sql<SearchResult>`
         SELECT 'column' as object_type, table_schema as schema_name, table_name, column_name as object_name, data_type as details
         FROM information_schema.columns
         WHERE LOWER(column_name) LIKE LOWER(${likePattern})
@@ -89,12 +89,12 @@ async function searchColumns(
 }
 
 async function searchFunctions(
-  db: any,
+  db: Kysely<Database>,
   likePattern: string,
   schemas: string[] | undefined,
 ): Promise<SearchResult[]> {
   const query = schemas
-    ? sql<any>`
+    ? sql<SearchResult>`
         SELECT 'function' as object_type, n.nspname as schema_name, NULL as table_name, p.proname as object_name,
           pg_get_function_result(p.oid) || '(' || pg_get_function_arguments(p.oid) || ')' as details
         FROM pg_proc p
@@ -102,7 +102,7 @@ async function searchFunctions(
         WHERE LOWER(p.proname) LIKE LOWER(${likePattern})
           AND n.nspname = ANY(${schemas})
       `
-    : sql<any>`
+    : sql<SearchResult>`
         SELECT 'function' as object_type, n.nspname as schema_name, NULL as table_name, p.proname as object_name,
           pg_get_function_result(p.oid) || '(' || pg_get_function_arguments(p.oid) || ')' as details
         FROM pg_proc p
@@ -115,18 +115,18 @@ async function searchFunctions(
 }
 
 async function searchIndexes(
-  db: any,
+  db: Kysely<Database>,
   likePattern: string,
   schemas: string[] | undefined,
 ): Promise<SearchResult[]> {
   const query = schemas
-    ? sql<any>`
+    ? sql<SearchResult>`
         SELECT 'index' as object_type, schemaname as schema_name, tablename as table_name, indexname as object_name, indexdef as details
         FROM pg_indexes
         WHERE LOWER(indexname) LIKE LOWER(${likePattern})
           AND schemaname = ANY(${schemas})
       `
-    : sql<any>`
+    : sql<SearchResult>`
         SELECT 'index' as object_type, schemaname as schema_name, tablename as table_name, indexname as object_name, indexdef as details
         FROM pg_indexes
         WHERE LOWER(indexname) LIKE LOWER(${likePattern})
@@ -137,12 +137,12 @@ async function searchIndexes(
 }
 
 async function searchConstraints(
-  db: any,
+  db: Kysely<Database>,
   likePattern: string,
   schemas: string[] | undefined,
 ): Promise<SearchResult[]> {
   const query = schemas
-    ? sql<any>`
+    ? sql<SearchResult>`
         SELECT 'constraint' as object_type, n.nspname as schema_name, cl.relname as table_name, c.conname as object_name, pg_get_constraintdef(c.oid) as details
         FROM pg_constraint c
         JOIN pg_namespace n ON n.oid = c.connamespace
@@ -150,7 +150,7 @@ async function searchConstraints(
         WHERE LOWER(c.conname) LIKE LOWER(${likePattern})
           AND n.nspname = ANY(${schemas})
       `
-    : sql<any>`
+    : sql<SearchResult>`
         SELECT 'constraint' as object_type, n.nspname as schema_name, cl.relname as table_name, c.conname as object_name, pg_get_constraintdef(c.oid) as details
         FROM pg_constraint c
         JOIN pg_namespace n ON n.oid = c.connamespace
@@ -164,7 +164,7 @@ async function searchConstraints(
 
 const SEARCH_FNS: Record<
   string,
-  (db: any, pattern: string, schemas: string[] | undefined) => Promise<SearchResult[]>
+  (db: Kysely<Database>, pattern: string, schemas: string[] | undefined) => Promise<SearchResult[]>
 > = {
   table: searchTables,
   view: searchViews,

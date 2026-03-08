@@ -5,6 +5,7 @@ import { Pool, type PoolConfig } from "pg";
 dotenv.config();
 
 export interface Database {
+  // biome-ignore lint/suspicious/noExplicitAny: required for Kysely dynamic schema access
   [key: string]: any;
 }
 
@@ -110,6 +111,7 @@ class DatabaseManager {
     this.pool.on("error", (err) => {
       console.error("Database pool error:", {
         message: err.message,
+        // biome-ignore lint/suspicious/noExplicitAny: pg error object has code property not in Error type
         code: (err as any).code,
         timestamp: new Date().toISOString(),
       });

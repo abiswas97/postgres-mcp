@@ -30,6 +30,7 @@ import {
 } from "./validation.js";
 
 // Helper to extract inline schema from zodToJsonSchema output
+// biome-ignore lint/suspicious/noExplicitAny: zod-to-json-schema accepts any Zod schema type
 function getInlineSchema(zodSchema: any, name: string) {
   const jsonSchema = zodToJsonSchema(zodSchema, { name });
   return jsonSchema.definitions?.[name] || jsonSchema;
@@ -107,6 +108,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 });
 
 // Helper function to safely validate and execute tools
+// biome-ignore lint/suspicious/noExplicitAny: tool results are heterogeneous JSON-serializable objects
 function createSafeToolResponse(result: any) {
   return {
     content: [

@@ -1,4 +1,4 @@
-import { sql } from "kysely";
+import { type RawBuilder, sql } from "kysely";
 import { getDb } from "../db.js";
 import { ListIndexesInputSchema, validateInput } from "../validation.js";
 
@@ -30,7 +30,7 @@ export async function listIndexesTool(input: unknown): Promise<ListIndexesOutput
     const validatedInput = validation.data;
     const db = getDb();
 
-    let query;
+    let query: RawBuilder<IndexInfo>;
     if (validatedInput.table) {
       query = sql<IndexInfo>`
         SELECT 
