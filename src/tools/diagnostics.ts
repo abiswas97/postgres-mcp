@@ -1,5 +1,5 @@
-import { getDb } from "../db.js";
 import { sql } from "kysely";
+import { getDb } from "../db.js";
 import { DiagnoseDatabaseInputSchema, validateInput } from "../validation.js";
 
 const CACHE_HIT_WARNING = 99;
@@ -61,7 +61,12 @@ async function checkConnectionSaturation(): Promise<CheckResult> {
 
   const maxConnections = maxResult.rows[0]?.max_connections ?? 100;
 
-  const connResult = await sql<{ total: number; active: number; idle: number; idle_in_transaction: number }>`
+  const connResult = await sql<{
+    total: number;
+    active: number;
+    idle: number;
+    idle_in_transaction: number;
+  }>`
     SELECT
       count(*) as total,
       count(*) FILTER (WHERE state = 'active') as active,
@@ -81,12 +86,25 @@ async function checkConnectionSaturation(): Promise<CheckResult> {
   if (utilizationPct > CONNECTION_CRITICAL_PCT) status = "critical";
   else if (utilizationPct > CONNECTION_WARNING_PCT) status = "warning";
 
-  return { status, active, idle, idle_in_transaction: idleInTx, total, max: maxConnections, utilization_pct: utilizationPct };
+  return {
+    status,
+    active,
+    idle,
+    idle_in_transaction: idleInTx,
+    total,
+    max: maxConnections,
+    utilization_pct: utilizationPct,
+  };
 }
 
 async function checkLongRunningQueries(): Promise<CheckResult> {
   const db = getDb();
-  const result = await sql<{ pid: number; duration_seconds: number; state: string; query_preview: string }>`
+  const result = await sql<{
+    pid: number;
+    duration_seconds: number;
+    state: string;
+    query_preview: string;
+  }>`
     SELECT pid,
       EXTRACT(EPOCH FROM (now() - query_start))::int as duration_seconds,
       state, LEFT(query, 200) as query_preview
@@ -241,7 +259,7 @@ async function checkDatabaseSize(): Promise<CheckResult> {
       pg_size_pretty(pg_database_size(current_database())) as size_pretty
   `.execute(db);
 
-  const row = result.rows[0] ?? { size_bytes: 0, size_pretty: '0 bytes' };
+  const row = result.rows[0] ?? { size_bytes: 0, size_pretty: "0 bytes" };
   return { status: "healthy", size_bytes: Number(row.size_bytes), size_pretty: row.size_pretty };
 }
 
@@ -257,10 +275,22 @@ export async function diagnoseDatabaseTool(input: unknown): Promise<DiagnoseData
     const checksSkipped: string[] = [];
     let overallStatus: CheckStatus = "healthy";
 
-    const checkEntries: Array<{ name: string; fn: () => Promise<CheckResult>; condition?: boolean }> = [
+    const checkEntries: Array<{
+      name: string;
+      fn: () => Promise<CheckResult>;
+      condition?: boolean;
+    }> = [
       { name: "cache_hit_ratio", fn: checkCacheHitRatio },
-      { name: "connection_saturation", fn: checkConnectionSaturation, condition: include_connections !== false },
-      { name: "long_running_queries", fn: checkLongRunningQueries, condition: include_queries !== false },
+      {
+        name: "connection_saturation",
+        fn: checkConnectionSaturation,
+        condition: include_connections !== false,
+      },
+      {
+        name: "long_running_queries",
+        fn: checkLongRunningQueries,
+        condition: include_queries !== false,
+      },
       { name: "blocking_locks", fn: checkBlockingLocks },
       { name: "vacuum_health", fn: checkVacuumHealth },
       { name: "unused_indexes", fn: checkUnusedIndexes },
@@ -276,7 +306,9 @@ export async function diagnoseDatabaseTool(input: unknown): Promise<DiagnoseData
         checks[entry.name] = result;
         overallStatus = worstStatus(overallStatus, result.status);
       } catch (err) {
-        checksSkipped.push(`${entry.name}: ${err instanceof Error ? err.message : "Unknown error"}`);
+        checksSkipped.push(
+          `${entry.name}: ${err instanceof Error ? err.message : "Unknown error"}`,
+        );
       }
     }
 
@@ -302,8 +334,8 @@ export async function diagnoseDatabaseTool(input: unknown): Promise<DiagnoseData
       }
     }
 
-    const warningCount = Object.values(checks).filter(c => c.status === "warning").length;
-    const criticalCount = Object.values(checks).filter(c => c.status === "critical").length;
+    const warningCount = Object.values(checks).filter((c) => c.status === "warning").length;
+    const criticalCount = Object.values(checks).filter((c) => c.status === "critical").length;
 
     let summary: string;
     if (overallStatus === "healthy") {

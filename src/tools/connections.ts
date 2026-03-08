@@ -1,5 +1,5 @@
-import { getDb } from "../db.js";
 import { sql } from "kysely";
+import { getDb } from "../db.js";
 import { GetConnectionsInputSchema, validateInput } from "../validation.js";
 
 export interface ConnectionInfo {
@@ -44,7 +44,7 @@ export async function getConnectionsTool(input: unknown): Promise<GetConnections
       return { error: `Input validation failed: ${validation.error}` };
     }
 
-    const { include_queries, group_by } = validation.data;
+    const { include_queries } = validation.data;
     const db = getDb();
 
     const maxConnResult = await sql<{ max_connections: number }>`
@@ -75,10 +75,10 @@ export async function getConnectionsTool(input: unknown): Promise<GetConnections
 
     const byState = { active: 0, idle: 0, idle_in_transaction: 0, waiting: 0, other: 0 };
     for (const row of rows) {
-      if (row.wait_event_type === 'Lock') byState.waiting++;
-      else if (row.state === 'active') byState.active++;
-      else if (row.state === 'idle') byState.idle++;
-      else if (row.state === 'idle in transaction') byState.idle_in_transaction++;
+      if (row.wait_event_type === "Lock") byState.waiting++;
+      else if (row.state === "active") byState.active++;
+      else if (row.state === "idle") byState.idle++;
+      else if (row.state === "idle in transaction") byState.idle_in_transaction++;
       else byState.other++;
     }
 
@@ -95,7 +95,7 @@ export async function getConnectionsTool(input: unknown): Promise<GetConnections
     const warnings: string[] = [];
 
     const longIdleTx = rows.filter(
-      (r) => r.state === 'idle in transaction' && r.duration_seconds > 300
+      (r) => r.state === "idle in transaction" && r.duration_seconds > 300,
     );
     if (longIdleTx.length > 0) {
       warnings.push(`${longIdleTx.length} connections idle-in-transaction for > 5 minutes`);

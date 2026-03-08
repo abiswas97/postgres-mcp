@@ -1,9 +1,9 @@
-import { describe, test, expect, beforeAll, afterAll } from "@jest/globals";
+import { afterAll, beforeAll, describe, expect, test } from "@jest/globals";
 import {
+  getTestDb,
+  isDockerAvailable,
   setupTestContainer,
   teardownTestContainer,
-  isDockerAvailable,
-  getTestDb,
 } from "../setup/testcontainer";
 
 function createTestTools(connectionInfo: any) {
@@ -31,7 +31,7 @@ function createTestTools(connectionInfo: any) {
     "../../src/tools/diagnostics",
     "../../src/tools/slow-queries",
   ];
-  modulePaths.forEach((p) => delete require.cache[require.resolve(p)]);
+  for (const p of modulePaths) delete require.cache[require.resolve(p)];
 
   const cleanup = () => {
     process.env = originalEnv;
@@ -84,7 +84,9 @@ function createReadOnlyTestTools(connectionInfo: any) {
   delete require.cache[require.resolve("../../src/tools/query")];
 
   return {
-    cleanup: () => { process.env = originalEnv; },
+    cleanup: () => {
+      process.env = originalEnv;
+    },
     getTools: async () => {
       const { queryTool } = await import("../../src/tools/query");
       const { closeDb } = await import("../../src/db");
@@ -110,7 +112,9 @@ function createRowLimitTestTools(connectionInfo: any, rowLimit: string) {
   delete require.cache[require.resolve("../../src/tools/query")];
 
   return {
-    cleanup: () => { process.env = originalEnv; },
+    cleanup: () => {
+      process.env = originalEnv;
+    },
     getTools: async () => {
       const { queryTool } = await import("../../src/tools/query");
       const { closeDb } = await import("../../src/db");
@@ -216,9 +220,7 @@ describeWithDocker("Testcontainer Integration Tests", () => {
       expect(describeResult.constraints).toBeDefined();
       expect(describeResult.constraints!.length).toBeGreaterThan(0);
 
-      const constraintDefs = describeResult.constraints!.map(
-        (c) => c.constraint_definition
-      );
+      const constraintDefs = describeResult.constraints!.map((c) => c.constraint_definition);
       expect(constraintDefs.some((def) => def.includes("PRIMARY KEY"))).toBe(true);
 
       const schemasResult = await listSchemasTool({});
@@ -233,23 +235,25 @@ describeWithDocker("Testcontainer Integration Tests", () => {
       const allSchemasResult = await listSchemasTool({
         includeSystemSchemas: true,
       });
-      expect(allSchemasResult.schemas!.length).toBeGreaterThan(
-        schemasResult.schemas!.length
-      );
+      expect(allSchemasResult.schemas!.length).toBeGreaterThan(schemasResult.schemas!.length);
       expect(allSchemasResult.schemas!.map((s) => s.schema_name)).toContain("information_schema");
 
       const indexesResult = await listIndexesTool({ schema: "testschema" });
       expect(indexesResult.error).toBeUndefined();
       expect(indexesResult.indexes).toBeDefined();
       expect(indexesResult.indexes!.length).toBeGreaterThan(0);
-      expect(indexesResult.indexes!.map((i) => i.index_name).some((name) => name.includes("pkey"))).toBe(true);
+      expect(
+        indexesResult.indexes!.map((i) => i.index_name).some((name) => name.includes("pkey")),
+      ).toBe(true);
 
       const userIndexesResult = await listIndexesTool({
         schema: "testschema",
         table: "users",
       });
       expect(userIndexesResult.indexes).toBeDefined();
-      expect(userIndexesResult.indexes!.filter((i) => i.table_name === "users").length).toBeGreaterThan(0);
+      expect(
+        userIndexesResult.indexes!.filter((i) => i.table_name === "users").length,
+      ).toBeGreaterThan(0);
 
       const explainResult = await explainQueryTool({
         sql: "SELECT * FROM testschema.users WHERE id = 1",
@@ -276,9 +280,7 @@ describeWithDocker("Testcontainer Integration Tests", () => {
       expect(viewsResult.error).toBeUndefined();
       expect(viewsResult.objects!.map((v) => v.object_name)).toContain("published_posts");
 
-      const publishedView = viewsResult.objects!.find(
-        (v) => v.object_name === "published_posts"
-      );
+      const publishedView = viewsResult.objects!.find((v) => v.object_name === "published_posts");
       expect(publishedView).toBeDefined();
       expect(publishedView!.details).toContain("SELECT");
 
@@ -400,8 +402,7 @@ describeWithDocker("Testcontainer Integration Tests", () => {
     const testTools = createTestTools(containerSetup.connectionInfo);
 
     try {
-      const { queryTool, describeTableTool, closeDb } =
-        await testTools.getTools();
+      const { queryTool, describeTableTool, closeDb } = await testTools.getTools();
 
       const invalidQuery = await queryTool({
         sql: "INVALID SQL SYNTAX HERE",
@@ -514,7 +515,7 @@ describeWithDocker("Testcontainer Integration Tests", () => {
       });
       expect(injectionResult2.error).toBeDefined();
       expect(injectionResult2.error).toMatch(
-        /(invalid input syntax for type integer|Database operation failed)/
+        /(invalid input syntax for type integer|Database operation failed)/,
       );
 
       const injectionResult3 = await queryTool({
@@ -530,7 +531,7 @@ describeWithDocker("Testcontainer Integration Tests", () => {
       });
       expect(injectionResult4.error).toBeDefined();
       expect(injectionResult4.error).toMatch(
-        /(invalid input syntax for type integer|Database operation failed)/
+        /(invalid input syntax for type integer|Database operation failed)/,
       );
 
       await closeDb();
@@ -652,7 +653,7 @@ describeWithDocker("Testcontainer Integration Tests", () => {
     try {
       const { searchObjectsTool, closeDb } = await testTools.getTools();
 
-      const result = await searchObjectsTool({ pattern: 'user' });
+      const result = await searchObjectsTool({ pattern: "user" });
       expect(result.error).toBeUndefined();
       expect(result.results).toBeDefined();
       expect(result.results!.length).toBeGreaterThan(0);
@@ -660,12 +661,14 @@ describeWithDocker("Testcontainer Integration Tests", () => {
       const types = [...new Set(result.results!.map((r: any) => r.object_type))];
       expect(types.length).toBeGreaterThan(1);
 
-      const tableOnly = await searchObjectsTool({ pattern: 'user', object_types: ['table'] });
+      const tableOnly = await searchObjectsTool({ pattern: "user", object_types: ["table"] });
       expect(tableOnly.results).toBeDefined();
-      expect(tableOnly.results!.every((r: any) => r.object_type === 'table')).toBe(true);
+      expect(tableOnly.results!.every((r: any) => r.object_type === "table")).toBe(true);
 
       await closeDb();
-    } finally { testTools.cleanup(); }
+    } finally {
+      testTools.cleanup();
+    }
   });
 
   test("should get active connections", async () => {
@@ -682,7 +685,9 @@ describeWithDocker("Testcontainer Integration Tests", () => {
       expect(result.timestamp).toBeDefined();
 
       await closeDb();
-    } finally { testTools.cleanup(); }
+    } finally {
+      testTools.cleanup();
+    }
   });
 
   test("should diagnose database health", async () => {
@@ -693,7 +698,7 @@ describeWithDocker("Testcontainer Integration Tests", () => {
       const result = await diagnoseDatabaseTool({});
       expect(result.error).toBeUndefined();
       expect(result.status).toBeDefined();
-      expect(['healthy', 'warning', 'critical']).toContain(result.status);
+      expect(["healthy", "warning", "critical"]).toContain(result.status);
       expect(result.checks).toBeDefined();
       expect(result.checks!.cache_hit_ratio).toBeDefined();
       expect(result.checks!.connection_saturation).toBeDefined();
@@ -702,7 +707,9 @@ describeWithDocker("Testcontainer Integration Tests", () => {
       expect(result.timestamp).toBeDefined();
 
       await closeDb();
-    } finally { testTools.cleanup(); }
+    } finally {
+      testTools.cleanup();
+    }
   });
 
   test("should get slow queries from pg_stat_statements", async () => {
@@ -711,7 +718,7 @@ describeWithDocker("Testcontainer Integration Tests", () => {
       const { getSlowQueriesTool, queryTool, closeDb } = await testTools.getTools();
 
       for (let i = 0; i < 10; i++) {
-        await queryTool({ sql: 'SELECT * FROM testschema.users' });
+        await queryTool({ sql: "SELECT * FROM testschema.users" });
       }
 
       const result = await getSlowQueriesTool({});
@@ -719,11 +726,13 @@ describeWithDocker("Testcontainer Integration Tests", () => {
       expect(result.queries).toBeDefined();
       expect(result.queries!.length).toBeGreaterThan(0);
 
-      const filtered = await getSlowQueriesTool({ min_calls: 5, sort_by: 'calls' });
+      const filtered = await getSlowQueriesTool({ min_calls: 5, sort_by: "calls" });
       expect(filtered.queries).toBeDefined();
 
       await closeDb();
-    } finally { testTools.cleanup(); }
+    } finally {
+      testTools.cleanup();
+    }
   });
 
   test("should detect sequence near limit in diagnostics", async () => {
@@ -734,7 +743,7 @@ describeWithDocker("Testcontainer Integration Tests", () => {
       const result = await diagnoseDatabaseTool({});
       if (result.checks?.sequence_health?.sequences_near_limit) {
         const testSeq = result.checks.sequence_health.sequences_near_limit.find(
-          (s: any) => s.name === 'test_sequence'
+          (s: any) => s.name === "test_sequence",
         );
         if (testSeq) {
           expect(Number(testSeq.pct_used)).toBeGreaterThan(75);
@@ -742,7 +751,9 @@ describeWithDocker("Testcontainer Integration Tests", () => {
       }
 
       await closeDb();
-    } finally { testTools.cleanup(); }
+    } finally {
+      testTools.cleanup();
+    }
   });
 
   test("should provide detailed error categorization", async () => {

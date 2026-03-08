@@ -1,5 +1,5 @@
-import { getDb } from "../db.js";
 import { sql } from "kysely";
+import { getDb } from "../db.js";
 import { GetSlowQueriesInputSchema, validateInput } from "../validation.js";
 
 export interface SlowQuery {
@@ -26,17 +26,17 @@ export interface GetSlowQueriesOutput {
 }
 
 const PG13_SORT_COLUMN_MAP: Record<string, string> = {
-  total_time: 'total_exec_time',
-  mean_time: 'mean_exec_time',
-  calls: 'calls',
-  rows: 'rows'
+  total_time: "total_exec_time",
+  mean_time: "mean_exec_time",
+  calls: "calls",
+  rows: "rows",
 };
 
 const PG12_SORT_COLUMN_MAP: Record<string, string> = {
-  total_time: 'total_time',
-  mean_time: 'mean_time',
-  calls: 'calls',
-  rows: 'rows'
+  total_time: "total_time",
+  mean_time: "mean_time",
+  calls: "calls",
+  rows: "rows",
 };
 
 interface TimeColumns {
@@ -48,19 +48,19 @@ interface TimeColumns {
 }
 
 const PG13_TIME_COLUMNS: TimeColumns = {
-  total: 'total_exec_time',
-  mean: 'mean_exec_time',
-  min: 'min_exec_time',
-  max: 'max_exec_time',
-  stddev: 'stddev_exec_time'
+  total: "total_exec_time",
+  mean: "mean_exec_time",
+  min: "min_exec_time",
+  max: "max_exec_time",
+  stddev: "stddev_exec_time",
 };
 
 const PG12_TIME_COLUMNS: TimeColumns = {
-  total: 'total_time',
-  mean: 'mean_time',
-  min: 'min_time',
-  max: 'max_time',
-  stddev: 'stddev_time'
+  total: "total_time",
+  mean: "mean_time",
+  min: "min_time",
+  max: "max_time",
+  stddev: "stddev_time",
 };
 
 function buildStatementsQuery(
@@ -69,7 +69,7 @@ function buildStatementsQuery(
   timeCols: TimeColumns,
   minCalls: number,
   minDurationMs: number,
-  queryLimit: number
+  queryLimit: number,
 ) {
   const sortColumn = sortColumnMap[sortBy];
   const selectAndFrom = `SELECT
@@ -107,11 +107,11 @@ export async function getSlowQueriesTool(input: unknown): Promise<GetSlowQueries
     }
 
     const {
-      sort_by = 'total_time',
+      sort_by = "total_time",
       limit = 10,
       min_calls = 5,
       min_duration_ms = 0,
-      include_query_text = true
+      include_query_text = true,
     } = validation.data;
 
     const db = getDb();
@@ -123,18 +123,32 @@ export async function getSlowQueriesTool(input: unknown): Promise<GetSlowQueries
     if (extCheck.rows.length === 0) {
       return {
         extension_installed: false,
-        hint: "Enable pg_stat_statements for slow query analysis. Add shared_preload_libraries = 'pg_stat_statements' to postgresql.conf, restart PostgreSQL, then run CREATE EXTENSION pg_stat_statements;"
+        hint: "Enable pg_stat_statements for slow query analysis. Add shared_preload_libraries = 'pg_stat_statements' to postgresql.conf, restart PostgreSQL, then run CREATE EXTENSION pg_stat_statements;",
       };
     }
 
     let rows: SlowQuery[];
     try {
-      const query = buildStatementsQuery(sort_by, PG13_SORT_COLUMN_MAP, PG13_TIME_COLUMNS, min_calls, min_duration_ms, limit);
+      const query = buildStatementsQuery(
+        sort_by,
+        PG13_SORT_COLUMN_MAP,
+        PG13_TIME_COLUMNS,
+        min_calls,
+        min_duration_ms,
+        limit,
+      );
       const result = await query.execute(db);
       rows = result.rows;
     } catch (err: any) {
-      if (err?.message?.includes('column') && err?.message?.includes('does not exist')) {
-        const query = buildStatementsQuery(sort_by, PG12_SORT_COLUMN_MAP, PG12_TIME_COLUMNS, min_calls, min_duration_ms, limit);
+      if (err?.message?.includes("column") && err?.message?.includes("does not exist")) {
+        const query = buildStatementsQuery(
+          sort_by,
+          PG12_SORT_COLUMN_MAP,
+          PG12_TIME_COLUMNS,
+          min_calls,
+          min_duration_ms,
+          limit,
+        );
         const result = await query.execute(db);
         rows = result.rows;
       } else {
@@ -143,7 +157,7 @@ export async function getSlowQueriesTool(input: unknown): Promise<GetSlowQueries
     }
 
     if (!include_query_text) {
-      rows = rows.map(r => ({ ...r, query: null }));
+      rows = rows.map((r) => ({ ...r, query: null }));
     }
 
     let statsReset: string | null = null;
@@ -159,12 +173,12 @@ export async function getSlowQueriesTool(input: unknown): Promise<GetSlowQueries
     return {
       queries: rows,
       stats_reset: statsReset,
-      extension_installed: true
+      extension_installed: true,
     };
   } catch (error) {
     return {
       extension_installed: false,
-      error: error instanceof Error ? error.message : "Unknown error occurred"
+      error: error instanceof Error ? error.message : "Unknown error occurred",
     };
   }
 }

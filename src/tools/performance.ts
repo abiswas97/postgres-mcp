@@ -1,18 +1,13 @@
-import { getDb } from "../db.js";
 import { sql } from "kysely";
-import {
-  ExplainQueryInputSchema,
-  validateInput,
-} from "../validation.js";
+import { getDb } from "../db.js";
+import { ExplainQueryInputSchema, validateInput } from "../validation.js";
 
 export interface ExplainQueryOutput {
   plan?: any[];
   error?: string;
 }
 
-export async function explainQueryTool(
-  input: unknown
-): Promise<ExplainQueryOutput> {
+export async function explainQueryTool(input: unknown): Promise<ExplainQueryOutput> {
   try {
     const validation = validateInput(ExplainQueryInputSchema, input);
     if (!validation.success) {
@@ -33,8 +28,7 @@ export async function explainQueryTool(
       trimmedSql.includes("TRUNCATE")
     ) {
       return {
-        error:
-          "EXPLAIN is only allowed for SELECT queries and read-only operations",
+        error: "EXPLAIN is only allowed for SELECT queries and read-only operations",
       };
     }
 

@@ -1,5 +1,5 @@
-import { getDb } from "../db.js";
 import { sql } from "kysely";
+import { getDb } from "../db.js";
 import { ListSchemasInputSchema, validateInput } from "../validation.js";
 
 export interface SchemaInfo {
@@ -12,9 +12,7 @@ export interface ListSchemasOutput {
   error?: string;
 }
 
-export async function listSchemasTool(
-  input: unknown
-): Promise<ListSchemasOutput> {
+export async function listSchemasTool(input: unknown): Promise<ListSchemasOutput> {
   try {
     const validation = validateInput(ListSchemasInputSchema, input);
     if (!validation.success) {

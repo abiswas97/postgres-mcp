@@ -1,25 +1,25 @@
-import { describe, test, expect, afterEach } from '@jest/globals';
-import { cleanupDatabase } from '../../helpers/cleanup';
+import { afterEach, describe, expect, test } from "@jest/globals";
+import { cleanupDatabase } from "../../helpers/cleanup";
 
 const mockSqlTagged = jest.fn(() => ({
-  execute: jest.fn(() => Promise.resolve({ rows: [] }))
+  execute: jest.fn(() => Promise.resolve({ rows: [] })),
 }));
 (mockSqlTagged as any).raw = jest.fn((str: string) => str);
 
-jest.mock('kysely', () => ({
+jest.mock("kysely", () => ({
   sql: mockSqlTagged,
   Kysely: jest.fn(),
-  PostgresDialect: jest.fn()
+  PostgresDialect: jest.fn(),
 }));
 
-jest.mock('../../../src/db', () => ({
+jest.mock("../../../src/db", () => ({
   getDb: jest.fn(() => ({})),
-  closeDb: jest.fn(() => Promise.resolve())
+  closeDb: jest.fn(() => Promise.resolve()),
 }));
 
 const mockSlowQueries = [
   {
-    query: 'SELECT * FROM users WHERE id = $1',
+    query: "SELECT * FROM users WHERE id = $1",
     calls: 1500,
     total_time_ms: 45000.5,
     mean_time_ms: 30.0,
@@ -30,10 +30,10 @@ const mockSlowQueries = [
     shared_blks_hit: 9000,
     shared_blks_read: 1000,
     cache_hit_ratio: 90.0,
-    temp_blks_written: 0
+    temp_blks_written: 0,
   },
   {
-    query: 'SELECT * FROM orders JOIN users ON users.id = orders.user_id',
+    query: "SELECT * FROM orders JOIN users ON users.id = orders.user_id",
     calls: 500,
     total_time_ms: 30000.0,
     mean_time_ms: 60.0,
@@ -44,8 +44,8 @@ const mockSlowQueries = [
     shared_blks_hit: 5000,
     shared_blks_read: 3000,
     cache_hit_ratio: 62.5,
-    temp_blks_written: 100
-  }
+    temp_blks_written: 100,
+  },
 ];
 
 function setupMock(options: {
@@ -59,21 +59,21 @@ function setupMock(options: {
     extensionInstalled = true,
     queryRows = mockSlowQueries,
     queryError,
-    statsReset = '2026-01-01 00:00:00+00',
-    statsResetError = false
+    statsReset = "2026-01-01 00:00:00+00",
+    statsResetError = false,
   } = options;
 
-  const { sql } = require('kysely');
+  const { sql } = require("kysely");
   const mockSql = sql as jest.MockedFunction<typeof sql> & { raw: jest.Mock };
   let callCount = 0;
 
   mockSql.raw = jest.fn((str: string) => str);
-  mockSql.mockImplementation((...args: any[]) => ({
+  mockSql.mockImplementation((..._args: any[]) => ({
     execute: jest.fn(() => {
       callCount++;
       if (callCount === 1) {
         return Promise.resolve({
-          rows: extensionInstalled ? [{ exists: 1 }] : []
+          rows: extensionInstalled ? [{ exists: 1 }] : [],
         });
       }
       if (callCount === 2) {
@@ -90,7 +90,7 @@ function setupMock(options: {
           return Promise.reject(new Error('relation "pg_stat_statements_info" does not exist'));
         }
         return Promise.resolve({
-          rows: statsReset ? [{ stats_reset: statsReset }] : []
+          rows: statsReset ? [{ stats_reset: statsReset }] : [],
         });
       }
       if (callCount === 4) {
@@ -98,24 +98,24 @@ function setupMock(options: {
           return Promise.reject(new Error('relation "pg_stat_statements_info" does not exist'));
         }
         return Promise.resolve({
-          rows: statsReset ? [{ stats_reset: statsReset }] : []
+          rows: statsReset ? [{ stats_reset: statsReset }] : [],
         });
       }
       return Promise.resolve({ rows: [] });
-    })
+    }),
   }));
 }
 
-describe('Get Slow Queries Tool Unit Tests', () => {
+describe("Get Slow Queries Tool Unit Tests", () => {
   afterEach(async () => {
     await cleanupDatabase();
     jest.clearAllMocks();
   });
 
-  describe('Extension installed', () => {
-    test('should return queries when extension is installed', async () => {
+  describe("Extension installed", () => {
+    test("should return queries when extension is installed", async () => {
       setupMock({ extensionInstalled: true });
-      const { getSlowQueriesTool } = await import('../../../src/tools/slow-queries');
+      const { getSlowQueriesTool } = await import("../../../src/tools/slow-queries");
       const result = await getSlowQueriesTool({});
 
       expect(result.error).toBeUndefined();
@@ -124,44 +124,44 @@ describe('Get Slow Queries Tool Unit Tests', () => {
       expect(result.queries!.length).toBe(2);
       expect(result.queries![0].calls).toBe(1500);
       expect(result.queries![0].total_time_ms).toBe(45000.5);
-      expect(result.stats_reset).toBe('2026-01-01 00:00:00+00');
+      expect(result.stats_reset).toBe("2026-01-01 00:00:00+00");
     });
   });
 
-  describe('Extension not installed', () => {
-    test('should return graceful response when extension not installed', async () => {
+  describe("Extension not installed", () => {
+    test("should return graceful response when extension not installed", async () => {
       setupMock({ extensionInstalled: false });
-      const { getSlowQueriesTool } = await import('../../../src/tools/slow-queries');
+      const { getSlowQueriesTool } = await import("../../../src/tools/slow-queries");
       const result = await getSlowQueriesTool({});
 
       expect(result.extension_installed).toBe(false);
       expect(result.hint).toBeDefined();
-      expect(result.hint).toContain('pg_stat_statements');
-      expect(result.hint).toContain('shared_preload_libraries');
+      expect(result.hint).toContain("pg_stat_statements");
+      expect(result.hint).toContain("shared_preload_libraries");
       expect(result.queries).toBeUndefined();
     });
   });
 
-  describe('Sort parameter', () => {
-    test('should respect sort_by parameter', async () => {
+  describe("Sort parameter", () => {
+    test("should respect sort_by parameter", async () => {
       setupMock({ extensionInstalled: true });
-      const { sql } = require('kysely');
-      const { getSlowQueriesTool } = await import('../../../src/tools/slow-queries');
-      await getSlowQueriesTool({ sort_by: 'mean_time' });
+      const { sql } = require("kysely");
+      const { getSlowQueriesTool } = await import("../../../src/tools/slow-queries");
+      await getSlowQueriesTool({ sort_by: "mean_time" });
 
       const calls = (sql as jest.Mock).mock.calls;
       const rawCallArgs = calls.find((c: any[]) => {
         const str = c?.[0]?.[0] || String(c?.[0]);
-        return typeof str === 'string' && str.includes('pg_stat_statements');
+        return typeof str === "string" && str.includes("pg_stat_statements");
       });
       expect(rawCallArgs).toBeDefined();
     });
   });
 
-  describe('Filtering', () => {
-    test('should respect min_calls filter', async () => {
+  describe("Filtering", () => {
+    test("should respect min_calls filter", async () => {
       setupMock({ extensionInstalled: true });
-      const { getSlowQueriesTool } = await import('../../../src/tools/slow-queries');
+      const { getSlowQueriesTool } = await import("../../../src/tools/slow-queries");
       const result = await getSlowQueriesTool({ min_calls: 10 });
 
       expect(result.extension_installed).toBe(true);
@@ -169,10 +169,10 @@ describe('Get Slow Queries Tool Unit Tests', () => {
     });
   });
 
-  describe('Query text visibility', () => {
-    test('should omit query text when include_query_text is false', async () => {
+  describe("Query text visibility", () => {
+    test("should omit query text when include_query_text is false", async () => {
       setupMock({ extensionInstalled: true });
-      const { getSlowQueriesTool } = await import('../../../src/tools/slow-queries');
+      const { getSlowQueriesTool } = await import("../../../src/tools/slow-queries");
       const result = await getSlowQueriesTool({ include_query_text: false });
 
       expect(result.queries).toBeDefined();
@@ -181,9 +181,9 @@ describe('Get Slow Queries Tool Unit Tests', () => {
       }
     });
 
-    test('should include query text by default', async () => {
+    test("should include query text by default", async () => {
       setupMock({ extensionInstalled: true });
-      const { getSlowQueriesTool } = await import('../../../src/tools/slow-queries');
+      const { getSlowQueriesTool } = await import("../../../src/tools/slow-queries");
       const result = await getSlowQueriesTool({});
 
       expect(result.queries).toBeDefined();
@@ -194,10 +194,10 @@ describe('Get Slow Queries Tool Unit Tests', () => {
     });
   });
 
-  describe('Stats reset handling', () => {
-    test('should handle stats_reset failure gracefully', async () => {
+  describe("Stats reset handling", () => {
+    test("should handle stats_reset failure gracefully", async () => {
       setupMock({ extensionInstalled: true, statsResetError: true });
-      const { getSlowQueriesTool } = await import('../../../src/tools/slow-queries');
+      const { getSlowQueriesTool } = await import("../../../src/tools/slow-queries");
       const result = await getSlowQueriesTool({});
 
       expect(result.error).toBeUndefined();
@@ -207,14 +207,14 @@ describe('Get Slow Queries Tool Unit Tests', () => {
     });
   });
 
-  describe('PG12 fallback', () => {
-    test('should fall back to old column names on PG12', async () => {
+  describe("PG12 fallback", () => {
+    test("should fall back to old column names on PG12", async () => {
       const columnError = new Error('column "total_exec_time" does not exist');
       setupMock({
         extensionInstalled: true,
-        queryError: columnError
+        queryError: columnError,
       });
-      const { getSlowQueriesTool } = await import('../../../src/tools/slow-queries');
+      const { getSlowQueriesTool } = await import("../../../src/tools/slow-queries");
       const result = await getSlowQueriesTool({});
 
       expect(result.error).toBeUndefined();
@@ -223,34 +223,34 @@ describe('Get Slow Queries Tool Unit Tests', () => {
     });
   });
 
-  describe('Error handling', () => {
-    test('should handle database errors gracefully', async () => {
-      const { sql } = require('kysely');
+  describe("Error handling", () => {
+    test("should handle database errors gracefully", async () => {
+      const { sql } = require("kysely");
       const mockSql = sql as jest.MockedFunction<typeof sql> & { raw: jest.Mock };
       mockSql.raw = jest.fn((str: string) => str);
       mockSql.mockImplementation(() => ({
-        execute: jest.fn(() => Promise.reject(new Error('Connection refused')))
+        execute: jest.fn(() => Promise.reject(new Error("Connection refused"))),
       }));
 
-      const { getSlowQueriesTool } = await import('../../../src/tools/slow-queries');
+      const { getSlowQueriesTool } = await import("../../../src/tools/slow-queries");
       const result = await getSlowQueriesTool({});
 
-      expect(result.error).toBe('Connection refused');
+      expect(result.error).toBe("Connection refused");
       expect(result.extension_installed).toBe(false);
     });
 
-    test('should handle non-Error exceptions', async () => {
-      const { sql } = require('kysely');
+    test("should handle non-Error exceptions", async () => {
+      const { sql } = require("kysely");
       const mockSql = sql as jest.MockedFunction<typeof sql> & { raw: jest.Mock };
       mockSql.raw = jest.fn((str: string) => str);
       mockSql.mockImplementation(() => ({
-        execute: jest.fn(() => Promise.reject('string error'))
+        execute: jest.fn(() => Promise.reject("string error")),
       }));
 
-      const { getSlowQueriesTool } = await import('../../../src/tools/slow-queries');
+      const { getSlowQueriesTool } = await import("../../../src/tools/slow-queries");
       const result = await getSlowQueriesTool({});
 
-      expect(result.error).toBe('Unknown error occurred');
+      expect(result.error).toBe("Unknown error occurred");
     });
   });
 });

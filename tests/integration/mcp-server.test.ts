@@ -1,30 +1,27 @@
-import { describe, test, expect, beforeAll, afterAll } from "@jest/globals";
+import { afterAll, beforeAll, describe, expect, test } from "@jest/globals";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import {
-  setupTestContainer,
-  teardownTestContainer,
-  isDockerAvailable,
-} from "../setup/testcontainer";
-import {
-  QueryInputSchema,
   DescribeTableInputSchema,
+  DiagnoseDatabaseInputSchema,
+  ExplainQueryInputSchema,
+  GetConnectionsInputSchema,
+  GetSlowQueriesInputSchema,
+  ListIndexesInputSchema,
   ListObjectsInputSchema,
   ListSchemasInputSchema,
-  ListIndexesInputSchema,
-  ExplainQueryInputSchema,
+  QueryInputSchema,
   SearchObjectsInputSchema,
-  GetConnectionsInputSchema,
-  DiagnoseDatabaseInputSchema,
-  GetSlowQueriesInputSchema,
   validateInput,
 } from "../../src/validation";
+import {
+  isDockerAvailable,
+  setupTestContainer,
+  teardownTestContainer,
+} from "../setup/testcontainer";
 
 function getInlineSchema(zodSchema: any, name: string) {
   const jsonSchema = zodToJsonSchema(zodSchema, { name });
@@ -66,7 +63,7 @@ describeWithDocker("E2E MCP Client Integration Tests", () => {
       "../../src/tools/diagnostics",
       "../../src/tools/slow-queries",
     ];
-    modulePaths.forEach((p) => delete require.cache[require.resolve(p)]);
+    for (const p of modulePaths) delete require.cache[require.resolve(p)];
 
     const { queryTool } = await import("../../src/tools/query");
     const { listObjectsTool } = await import("../../src/tools/list");
@@ -95,21 +92,61 @@ describeWithDocker("E2E MCP Client Integration Tests", () => {
     };
 
     const schemaMap: Record<string, { zodSchema: any; name: string; description: string }> = {
-      query: { zodSchema: QueryInputSchema, name: "QueryInput", description: "Execute SQL with pagination and parameterization" },
-      describe_table: { zodSchema: DescribeTableInputSchema, name: "DescribeTableInput", description: "Get table structure including columns, constraints, and size statistics" },
-      list_objects: { zodSchema: ListObjectsInputSchema, name: "ListObjectsInput", description: "List tables, views, or functions in a schema" },
-      list_schemas: { zodSchema: ListSchemasInputSchema, name: "ListSchemasInput", description: "List all schemas in the database" },
-      list_indexes: { zodSchema: ListIndexesInputSchema, name: "ListIndexesInput", description: "List indexes for a table or schema" },
-      explain_query: { zodSchema: ExplainQueryInputSchema, name: "ExplainQueryInput", description: "Get query execution plan (EXPLAIN)" },
-      search_objects: { zodSchema: SearchObjectsInputSchema, name: "SearchObjectsInput", description: "Find tables, columns, functions, views by name pattern across schemas" },
-      get_connections: { zodSchema: GetConnectionsInputSchema, name: "GetConnectionsInput", description: "Show active database connections" },
-      diagnose_database: { zodSchema: DiagnoseDatabaseInputSchema, name: "DiagnoseDatabaseInput", description: "Composite database health check" },
-      get_slow_queries: { zodSchema: GetSlowQueriesInputSchema, name: "GetSlowQueriesInput", description: "Analyze slow queries via pg_stat_statements" },
+      query: {
+        zodSchema: QueryInputSchema,
+        name: "QueryInput",
+        description: "Execute SQL with pagination and parameterization",
+      },
+      describe_table: {
+        zodSchema: DescribeTableInputSchema,
+        name: "DescribeTableInput",
+        description: "Get table structure including columns, constraints, and size statistics",
+      },
+      list_objects: {
+        zodSchema: ListObjectsInputSchema,
+        name: "ListObjectsInput",
+        description: "List tables, views, or functions in a schema",
+      },
+      list_schemas: {
+        zodSchema: ListSchemasInputSchema,
+        name: "ListSchemasInput",
+        description: "List all schemas in the database",
+      },
+      list_indexes: {
+        zodSchema: ListIndexesInputSchema,
+        name: "ListIndexesInput",
+        description: "List indexes for a table or schema",
+      },
+      explain_query: {
+        zodSchema: ExplainQueryInputSchema,
+        name: "ExplainQueryInput",
+        description: "Get query execution plan (EXPLAIN)",
+      },
+      search_objects: {
+        zodSchema: SearchObjectsInputSchema,
+        name: "SearchObjectsInput",
+        description: "Find tables, columns, functions, views by name pattern across schemas",
+      },
+      get_connections: {
+        zodSchema: GetConnectionsInputSchema,
+        name: "GetConnectionsInput",
+        description: "Show active database connections",
+      },
+      diagnose_database: {
+        zodSchema: DiagnoseDatabaseInputSchema,
+        name: "DiagnoseDatabaseInput",
+        description: "Composite database health check",
+      },
+      get_slow_queries: {
+        zodSchema: GetSlowQueriesInputSchema,
+        name: "GetSlowQueriesInput",
+        description: "Analyze slow queries via pg_stat_statements",
+      },
     };
 
     server = new Server(
       { name: "postgres-mcp-server-test", version: "2.0.0" },
-      { capabilities: { tools: {} } }
+      { capabilities: { tools: {} } },
     );
 
     server.setRequestHandler(ListToolsRequestSchema, async () => {
@@ -180,17 +217,20 @@ describeWithDocker("E2E MCP Client Integration Tests", () => {
 
     await server.connect(serverTransport);
 
-    client = new Client(
-      { name: "test-client", version: "1.0.0" },
-      { capabilities: {} }
-    );
+    client = new Client({ name: "test-client", version: "1.0.0" }, { capabilities: {} });
     await client.connect(clientTransport);
   }, 120000);
 
   afterAll(async () => {
-    try { await client?.close(); } catch {}
-    try { await server?.close(); } catch {}
-    try { await closeDb?.(); } catch {}
+    try {
+      await client?.close();
+    } catch {}
+    try {
+      await server?.close();
+    } catch {}
+    try {
+      await closeDb?.();
+    } catch {}
     await teardownTestContainer();
     process.env = originalEnv;
   }, 30000);
@@ -215,10 +255,10 @@ describeWithDocker("E2E MCP Client Integration Tests", () => {
   });
 
   test("callTool query with real SQL returns rows", async () => {
-    const result = await client.callTool({
+    const result = (await client.callTool({
       name: "query",
       arguments: { sql: "SELECT COUNT(*) as count FROM testschema.users" },
-    }) as any;
+    })) as any;
 
     expect(result.isError).toBeFalsy();
     expect(result.content).toHaveLength(1);
@@ -230,10 +270,10 @@ describeWithDocker("E2E MCP Client Integration Tests", () => {
   });
 
   test("callTool describe_table with real table returns columns", async () => {
-    const result = await client.callTool({
+    const result = (await client.callTool({
       name: "describe_table",
       arguments: { schema: "testschema", table: "users" },
-    }) as any;
+    })) as any;
 
     expect(result.isError).toBeFalsy();
     const parsed = JSON.parse(result.content[0].text);
@@ -241,10 +281,10 @@ describeWithDocker("E2E MCP Client Integration Tests", () => {
   });
 
   test("callTool list_schemas returns schemas from real database", async () => {
-    const result = await client.callTool({
+    const result = (await client.callTool({
       name: "list_schemas",
       arguments: {},
-    }) as any;
+    })) as any;
 
     expect(result.isError).toBeFalsy();
     const parsed = JSON.parse(result.content[0].text);
@@ -253,10 +293,10 @@ describeWithDocker("E2E MCP Client Integration Tests", () => {
   });
 
   test("callTool with invalid input returns validation error through protocol", async () => {
-    const result = await client.callTool({
+    const result = (await client.callTool({
       name: "query",
       arguments: {},
-    }) as any;
+    })) as any;
 
     expect(result.isError).toBe(true);
     const parsed = JSON.parse(result.content[0].text);
@@ -264,10 +304,10 @@ describeWithDocker("E2E MCP Client Integration Tests", () => {
   });
 
   test("callTool for unknown tool returns error through protocol", async () => {
-    const result = await client.callTool({
+    const result = (await client.callTool({
       name: "nonexistent_tool",
       arguments: {},
-    }) as any;
+    })) as any;
 
     expect(result.isError).toBe(true);
     const parsed = JSON.parse(result.content[0].text);
@@ -275,10 +315,10 @@ describeWithDocker("E2E MCP Client Integration Tests", () => {
   });
 
   test("callTool diagnose_database returns health status from real database", async () => {
-    const result = await client.callTool({
+    const result = (await client.callTool({
       name: "diagnose_database",
       arguments: {},
-    }) as any;
+    })) as any;
 
     expect(result.isError).toBeFalsy();
     const parsed = JSON.parse(result.content[0].text);

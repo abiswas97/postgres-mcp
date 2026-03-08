@@ -1,4 +1,4 @@
-import { describe, test, expect } from "@jest/globals";
+import { describe, expect, test } from "@jest/globals";
 
 describe("Package Structure", () => {
   describe("Module Exports", () => {
@@ -60,9 +60,7 @@ describe("Package Structure", () => {
     });
 
     test("should export describe table tool", async () => {
-      const { describeTableTool } = await import(
-        "../../src/tools/describe"
-      );
+      const { describeTableTool } = await import("../../src/tools/describe");
       expect(typeof describeTableTool).toBe("function");
     });
   });

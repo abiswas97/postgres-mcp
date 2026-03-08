@@ -1,5 +1,5 @@
-import { getDb } from '../db.js';
-import { sql } from 'kysely';
+import { sql } from "kysely";
+import { getDb } from "../db.js";
 
 export interface DescribeTableInput {
   schema: string;
@@ -97,17 +97,20 @@ export async function describeTableTool(input: DescribeTableInput): Promise<Desc
       FROM pg_stat_user_tables
       WHERE schemaname = ${input.schema}
         AND relname = ${input.table}
-    `.execute(db).then(result => {
-      if (result.rows.length === 0) return null;
-      const row = result.rows[0];
-      return {
-        ...row,
-        row_count: Number(row.row_count),
-        table_size_bytes: Number(row.table_size_bytes),
-        index_size_bytes: Number(row.index_size_bytes),
-        total_size_bytes: Number(row.total_size_bytes),
-      };
-    }).catch(() => null);
+    `
+      .execute(db)
+      .then((result) => {
+        if (result.rows.length === 0) return null;
+        const row = result.rows[0];
+        return {
+          ...row,
+          row_count: Number(row.row_count),
+          table_size_bytes: Number(row.table_size_bytes),
+          index_size_bytes: Number(row.index_size_bytes),
+          total_size_bytes: Number(row.total_size_bytes),
+        };
+      })
+      .catch(() => null);
 
     const [columnsResult, constraintsResult, statsResult] = await Promise.all([
       columnsQuery,
@@ -122,7 +125,7 @@ export async function describeTableTool(input: DescribeTableInput): Promise<Desc
     };
   } catch (error) {
     return {
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
+      error: error instanceof Error ? error.message : "Unknown error occurred",
     };
   }
 }

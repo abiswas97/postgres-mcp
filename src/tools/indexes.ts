@@ -1,6 +1,6 @@
-import { getDb } from "../db.js";
 import { sql } from "kysely";
-import { ListIndexesInputSchema, validateInput, type ListIndexesInput } from "../validation.js";
+import { getDb } from "../db.js";
+import { ListIndexesInputSchema, validateInput } from "../validation.js";
 
 export interface IndexInfo {
   schema_name: string;
@@ -19,16 +19,14 @@ export interface ListIndexesOutput {
   error?: string;
 }
 
-export async function listIndexesTool(
-  input: unknown
-): Promise<ListIndexesOutput> {
+export async function listIndexesTool(input: unknown): Promise<ListIndexesOutput> {
   try {
     // Validate input
     const validation = validateInput(ListIndexesInputSchema, input);
     if (!validation.success) {
       return { error: `Input validation failed: ${validation.error}` };
     }
-    
+
     const validatedInput = validation.data;
     const db = getDb();
 

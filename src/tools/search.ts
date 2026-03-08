@@ -1,5 +1,5 @@
-import { getDb } from "../db.js";
 import { sql } from "kysely";
+import { getDb } from "../db.js";
 import { SearchObjectsInputSchema, validateInput } from "../validation.js";
 
 export interface SearchResult {
@@ -17,10 +17,14 @@ export interface SearchObjectsOutput {
   error?: string;
 }
 
-const ALL_OBJECT_TYPES = ['table', 'view', 'column', 'function', 'index', 'constraint'] as const;
-const SYSTEM_SCHEMAS = ['pg_catalog', 'information_schema', 'pg_toast'];
+const ALL_OBJECT_TYPES = ["table", "view", "column", "function", "index", "constraint"] as const;
+const _SYSTEM_SCHEMAS = ["pg_catalog", "information_schema", "pg_toast"];
 
-async function searchTables(db: any, likePattern: string, schemas: string[] | undefined): Promise<SearchResult[]> {
+async function searchTables(
+  db: any,
+  likePattern: string,
+  schemas: string[] | undefined,
+): Promise<SearchResult[]> {
   const query = schemas
     ? sql<any>`
         SELECT 'table' as object_type, table_schema as schema_name, NULL as table_name, table_name as object_name, table_type as details
@@ -40,7 +44,11 @@ async function searchTables(db: any, likePattern: string, schemas: string[] | un
   return result.rows;
 }
 
-async function searchViews(db: any, likePattern: string, schemas: string[] | undefined): Promise<SearchResult[]> {
+async function searchViews(
+  db: any,
+  likePattern: string,
+  schemas: string[] | undefined,
+): Promise<SearchResult[]> {
   const query = schemas
     ? sql<any>`
         SELECT 'view' as object_type, table_schema as schema_name, NULL as table_name, table_name as object_name, LEFT(view_definition, 100) as details
@@ -58,7 +66,11 @@ async function searchViews(db: any, likePattern: string, schemas: string[] | und
   return result.rows;
 }
 
-async function searchColumns(db: any, likePattern: string, schemas: string[] | undefined): Promise<SearchResult[]> {
+async function searchColumns(
+  db: any,
+  likePattern: string,
+  schemas: string[] | undefined,
+): Promise<SearchResult[]> {
   const query = schemas
     ? sql<any>`
         SELECT 'column' as object_type, table_schema as schema_name, table_name, column_name as object_name, data_type as details
@@ -76,7 +88,11 @@ async function searchColumns(db: any, likePattern: string, schemas: string[] | u
   return result.rows;
 }
 
-async function searchFunctions(db: any, likePattern: string, schemas: string[] | undefined): Promise<SearchResult[]> {
+async function searchFunctions(
+  db: any,
+  likePattern: string,
+  schemas: string[] | undefined,
+): Promise<SearchResult[]> {
   const query = schemas
     ? sql<any>`
         SELECT 'function' as object_type, n.nspname as schema_name, NULL as table_name, p.proname as object_name,
@@ -98,7 +114,11 @@ async function searchFunctions(db: any, likePattern: string, schemas: string[] |
   return result.rows;
 }
 
-async function searchIndexes(db: any, likePattern: string, schemas: string[] | undefined): Promise<SearchResult[]> {
+async function searchIndexes(
+  db: any,
+  likePattern: string,
+  schemas: string[] | undefined,
+): Promise<SearchResult[]> {
   const query = schemas
     ? sql<any>`
         SELECT 'index' as object_type, schemaname as schema_name, tablename as table_name, indexname as object_name, indexdef as details
@@ -116,7 +136,11 @@ async function searchIndexes(db: any, likePattern: string, schemas: string[] | u
   return result.rows;
 }
 
-async function searchConstraints(db: any, likePattern: string, schemas: string[] | undefined): Promise<SearchResult[]> {
+async function searchConstraints(
+  db: any,
+  likePattern: string,
+  schemas: string[] | undefined,
+): Promise<SearchResult[]> {
   const query = schemas
     ? sql<any>`
         SELECT 'constraint' as object_type, n.nspname as schema_name, cl.relname as table_name, c.conname as object_name, pg_get_constraintdef(c.oid) as details
@@ -138,7 +162,10 @@ async function searchConstraints(db: any, likePattern: string, schemas: string[]
   return result.rows;
 }
 
-const SEARCH_FNS: Record<string, (db: any, pattern: string, schemas: string[] | undefined) => Promise<SearchResult[]>> = {
+const SEARCH_FNS: Record<
+  string,
+  (db: any, pattern: string, schemas: string[] | undefined) => Promise<SearchResult[]>
+> = {
   table: searchTables,
   view: searchViews,
   column: searchColumns,

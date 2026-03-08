@@ -1,36 +1,33 @@
 #!/usr/bin/env node
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
+import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 
 import { zodToJsonSchema } from "zod-to-json-schema";
+import { closeDb } from "./db.js";
+import { getConnectionsTool } from "./tools/connections.js";
+import { describeTableTool } from "./tools/describe.js";
+import { diagnoseDatabaseTool } from "./tools/diagnostics.js";
+import { listIndexesTool } from "./tools/indexes.js";
+import { listObjectsTool } from "./tools/list.js";
+import { explainQueryTool } from "./tools/performance.js";
+import { queryTool } from "./tools/query.js";
+import { listSchemasTool } from "./tools/schemas.js";
+import { searchObjectsTool } from "./tools/search.js";
+import { getSlowQueriesTool } from "./tools/slow-queries.js";
 import {
-  QueryInputSchema,
   DescribeTableInputSchema,
+  DiagnoseDatabaseInputSchema,
+  ExplainQueryInputSchema,
+  GetConnectionsInputSchema,
+  GetSlowQueriesInputSchema,
+  ListIndexesInputSchema,
   ListObjectsInputSchema,
   ListSchemasInputSchema,
-  ListIndexesInputSchema,
-  ExplainQueryInputSchema,
+  QueryInputSchema,
   SearchObjectsInputSchema,
-  GetConnectionsInputSchema,
-  DiagnoseDatabaseInputSchema,
-  GetSlowQueriesInputSchema,
-  validateInput
+  validateInput,
 } from "./validation.js";
-import { queryTool } from "./tools/query.js";
-import { describeTableTool } from "./tools/describe.js";
-import { listObjectsTool } from "./tools/list.js";
-import { listSchemasTool } from "./tools/schemas.js";
-import { listIndexesTool } from "./tools/indexes.js";
-import { explainQueryTool } from "./tools/performance.js";
-import { searchObjectsTool } from "./tools/search.js";
-import { getConnectionsTool } from "./tools/connections.js";
-import { diagnoseDatabaseTool } from "./tools/diagnostics.js";
-import { getSlowQueriesTool } from "./tools/slow-queries.js";
-import { closeDb } from "./db.js";
 
 // Helper to extract inline schema from zodToJsonSchema output
 function getInlineSchema(zodSchema: any, name: string) {
@@ -47,7 +44,7 @@ const server = new Server(
     capabilities: {
       tools: {},
     },
-  }
+  },
 );
 
 server.setRequestHandler(ListToolsRequestSchema, async () => {
@@ -90,12 +87,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "get_connections",
-        description: "Show active database connections, utilization, and idle-in-transaction warnings",
+        description:
+          "Show active database connections, utilization, and idle-in-transaction warnings",
         inputSchema: getInlineSchema(GetConnectionsInputSchema, "GetConnectionsInput"),
       },
       {
         name: "diagnose_database",
-        description: "Composite database health check: cache, connections, vacuum, indexes, sequences",
+        description:
+          "Composite database health check: cache, connections, vacuum, indexes, sequences",
         inputSchema: getInlineSchema(DiagnoseDatabaseInputSchema, "DiagnoseDatabaseInput"),
       },
       {
@@ -129,10 +128,10 @@ function createErrorResponse(error: string, code: string = "VALIDATION_ERROR") {
           {
             error,
             code,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
           },
           null,
-          2
+          2,
         ),
       },
     ],
@@ -238,8 +237,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         throw new Error(`Unknown tool: ${name}`);
     }
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    
+    const _errorMessage = error instanceof Error ? error.message : "Unknown error";
+
     return {
       isError: true,
       content: [
@@ -250,10 +249,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               error: "Tool execution failed",
               code: "TOOL_EXECUTION_ERROR",
               timestamp: new Date().toISOString(),
-              hint: "Check your input parameters and try again"
+              hint: "Check your input parameters and try again",
             },
             null,
-            2
+            2,
           ),
         },
       ],

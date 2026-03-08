@@ -1,9 +1,6 @@
-import { getDb } from "../db.js";
 import { sql } from "kysely";
-import {
-  ListObjectsInputSchema,
-  validateInput,
-} from "../validation.js";
+import { getDb } from "../db.js";
+import { ListObjectsInputSchema, validateInput } from "../validation.js";
 
 export interface ObjectInfo {
   object_name: string;
@@ -98,9 +95,7 @@ async function listFunctions(db: any, schema: string): Promise<ObjectInfo[]> {
   }));
 }
 
-export async function listObjectsTool(
-  input: unknown
-): Promise<ListObjectsOutput> {
+export async function listObjectsTool(input: unknown): Promise<ListObjectsOutput> {
   try {
     const validation = validateInput(ListObjectsInputSchema, input);
     if (!validation.success) {
