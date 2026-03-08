@@ -108,7 +108,7 @@ describeWithDocker("E2E MCP Client Integration Tests", () => {
     };
 
     server = new Server(
-      { name: "postgres-mcp-server-test", version: "1.0.0" },
+      { name: "postgres-mcp-server-test", version: "2.0.0" },
       { capabilities: { tools: {} } }
     );
 
