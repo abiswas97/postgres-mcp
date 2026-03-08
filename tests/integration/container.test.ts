@@ -6,9 +6,7 @@ import {
   getTestDb,
 } from "../setup/testcontainer";
 
-// Create tools with test database connection
 function createTestTools(connectionInfo: any) {
-  // Override environment variables for this test
   const originalEnv = { ...process.env };
 
   process.env.DB_HOST = connectionInfo.host;
@@ -20,18 +18,20 @@ function createTestTools(connectionInfo: any) {
   process.env.READ_ONLY = "false";
   process.env.NODE_ENV = "development";
 
-  // Clear module cache to force fresh imports with new env vars
-  delete require.cache[require.resolve("../../src/db")];
-  delete require.cache[require.resolve("../../src/tools/query")];
-  delete require.cache[require.resolve("../../src/tools/list")];
-  delete require.cache[require.resolve("../../src/tools/describe")];
-  delete require.cache[require.resolve("../../src/tools/schemas")];
-  delete require.cache[require.resolve("../../src/tools/indexes")];
-  delete require.cache[require.resolve("../../src/tools/performance")];
-  delete require.cache[require.resolve("../../src/tools/search")];
-  delete require.cache[require.resolve("../../src/tools/connections")];
-  delete require.cache[require.resolve("../../src/tools/diagnostics")];
-  delete require.cache[require.resolve("../../src/tools/slow-queries")];
+  const modulePaths = [
+    "../../src/db",
+    "../../src/tools/query",
+    "../../src/tools/list",
+    "../../src/tools/describe",
+    "../../src/tools/schemas",
+    "../../src/tools/indexes",
+    "../../src/tools/performance",
+    "../../src/tools/search",
+    "../../src/tools/connections",
+    "../../src/tools/diagnostics",
+    "../../src/tools/slow-queries",
+  ];
+  modulePaths.forEach((p) => delete require.cache[require.resolve(p)]);
 
   const cleanup = () => {
     process.env = originalEnv;
@@ -42,14 +42,10 @@ function createTestTools(connectionInfo: any) {
     getTools: async () => {
       const { queryTool } = await import("../../src/tools/query");
       const { listObjectsTool } = await import("../../src/tools/list");
-      const { describeTableTool } = await import(
-        "../../src/tools/describe"
-      );
+      const { describeTableTool } = await import("../../src/tools/describe");
       const { listSchemasTool } = await import("../../src/tools/schemas");
       const { listIndexesTool } = await import("../../src/tools/indexes");
-      const { explainQueryTool } = await import(
-        "../../src/tools/performance"
-      );
+      const { explainQueryTool } = await import("../../src/tools/performance");
       const { searchObjectsTool } = await import("../../src/tools/search");
       const { getConnectionsTool } = await import("../../src/tools/connections");
       const { diagnoseDatabaseTool } = await import("../../src/tools/diagnostics");
@@ -72,41 +68,74 @@ function createTestTools(connectionInfo: any) {
   };
 }
 
-describe("Testcontainer Integration Tests", () => {
-  let containerSetup: Awaited<ReturnType<typeof setupTestContainer>> | null =
-    null;
-  let dockerAvailable: boolean;
+function createReadOnlyTestTools(connectionInfo: any) {
+  const originalEnv = { ...process.env };
+
+  process.env.DB_HOST = connectionInfo.host;
+  process.env.DB_PORT = connectionInfo.port.toString();
+  process.env.DB_USER = connectionInfo.username;
+  process.env.DB_PASSWORD = connectionInfo.password;
+  process.env.DB_NAME = connectionInfo.database;
+  process.env.DB_SSL = "false";
+  process.env.READ_ONLY = "true";
+  process.env.NODE_ENV = "development";
+
+  delete require.cache[require.resolve("../../src/db")];
+  delete require.cache[require.resolve("../../src/tools/query")];
+
+  return {
+    cleanup: () => { process.env = originalEnv; },
+    getTools: async () => {
+      const { queryTool } = await import("../../src/tools/query");
+      const { closeDb } = await import("../../src/db");
+      return { queryTool, closeDb };
+    },
+  };
+}
+
+function createRowLimitTestTools(connectionInfo: any, rowLimit: string) {
+  const originalEnv = { ...process.env };
+
+  process.env.DB_HOST = connectionInfo.host;
+  process.env.DB_PORT = connectionInfo.port.toString();
+  process.env.DB_USER = connectionInfo.username;
+  process.env.DB_PASSWORD = connectionInfo.password;
+  process.env.DB_NAME = connectionInfo.database;
+  process.env.DB_SSL = "false";
+  process.env.READ_ONLY = "false";
+  process.env.ROW_LIMIT = rowLimit;
+  process.env.NODE_ENV = "development";
+
+  delete require.cache[require.resolve("../../src/db")];
+  delete require.cache[require.resolve("../../src/tools/query")];
+
+  return {
+    cleanup: () => { process.env = originalEnv; },
+    getTools: async () => {
+      const { queryTool } = await import("../../src/tools/query");
+      const { closeDb } = await import("../../src/db");
+      return { queryTool, closeDb };
+    },
+  };
+}
+
+const dockerAvailable = isDockerAvailable();
+const describeWithDocker = dockerAvailable ? describe : describe.skip;
+
+describeWithDocker("Testcontainer Integration Tests", () => {
+  let containerSetup: Awaited<ReturnType<typeof setupTestContainer>>;
 
   beforeAll(async () => {
-    dockerAvailable = await isDockerAvailable();
-
-    if (dockerAvailable) {
-      containerSetup = await setupTestContainer();
-    }
-  }, 120000); // 2 minutes timeout for container startup
+    containerSetup = await setupTestContainer();
+  }, 120000);
 
   afterAll(async () => {
-    if (containerSetup) {
-      await teardownTestContainer();
-    }
+    await teardownTestContainer();
   }, 30000);
 
-  test("should skip all tests if Docker is not available", () => {
-    if (!dockerAvailable) {
-      expect(dockerAvailable).toBe(false);
-      return;
-    }
-    expect(dockerAvailable).toBe(true);
-  });
-
   test("should have created test schema and data", async () => {
-    if (!dockerAvailable || !containerSetup) {
-      return; // Skip if no Docker
-    }
-
     const db = getTestDb();
 
-    // Check schema exists
     const schemas = await db
       .selectFrom("information_schema.schemata")
       .select("schema_name")
@@ -115,7 +144,6 @@ describe("Testcontainer Integration Tests", () => {
 
     expect(schemas).toHaveLength(1);
 
-    // Check tables exist
     const tables = await db
       .selectFrom("information_schema.tables")
       .select("table_name")
@@ -133,7 +161,6 @@ describe("Testcontainer Integration Tests", () => {
       "users",
     ]);
 
-    // Check sample data
     const userCount = await db
       .selectFrom("testschema.users")
       .select(db.fn.count("id").as("count"))
@@ -143,10 +170,6 @@ describe("Testcontainer Integration Tests", () => {
   });
 
   test("should test all MCP tools with real data", async () => {
-    if (!dockerAvailable || !containerSetup) {
-      return; // Skip if no Docker
-    }
-
     const testTools = createTestTools(containerSetup.connectionInfo);
 
     try {
@@ -160,7 +183,6 @@ describe("Testcontainer Integration Tests", () => {
         closeDb,
       } = await testTools.getTools();
 
-      // Test 1: Basic query
       const queryResult = await queryTool({
         sql: "SELECT COUNT(*) as count FROM testschema.users",
       });
@@ -168,47 +190,37 @@ describe("Testcontainer Integration Tests", () => {
       expect(queryResult.rows).toBeDefined();
       expect(queryResult.rows![0].count).toBe("3");
 
-      // Test 2: List tables
       const tablesResult = await listObjectsTool({ type: "tables", schema: "testschema" });
       expect(tablesResult.error).toBeUndefined();
       expect(tablesResult.objects).toBeDefined();
-      expect(tablesResult.objects!.length).toBe(5); // 5 base tables only
+      expect(tablesResult.objects!.length).toBe(5);
 
       const tableNames = tablesResult.objects!.map((t) => t.object_name).sort();
       expect(tableNames).toContain("users");
       expect(tableNames).toContain("posts");
-      expect(tableNames).not.toContain("published_posts"); // view excluded
+      expect(tableNames).not.toContain("published_posts");
 
-      // Test 3: Describe table
       const describeResult = await describeTableTool({
         schema: "testschema",
         table: "users",
       });
       expect(describeResult.error).toBeUndefined();
       expect(describeResult.columns).toBeDefined();
-      expect(describeResult.columns!.length).toBe(6); // id, name, email, age, created_at, updated_at
+      expect(describeResult.columns!.length).toBe(6);
 
       const columnNames = describeResult.columns!.map((c) => c.column_name);
       expect(columnNames).toContain("id");
       expect(columnNames).toContain("name");
       expect(columnNames).toContain("email");
 
-      // Test 4: Verify constraints from describe_table
       expect(describeResult.constraints).toBeDefined();
       expect(describeResult.constraints!.length).toBeGreaterThan(0);
 
-      const constraintTypes = describeResult.constraints!.map(
-        (c) => c.constraint_type
-      );
-      expect(constraintTypes.length).toBeGreaterThan(0);
       const constraintDefs = describeResult.constraints!.map(
         (c) => c.constraint_definition
       );
-      expect(constraintDefs.some((def) => def.includes("PRIMARY KEY"))).toBe(
-        true
-      );
+      expect(constraintDefs.some((def) => def.includes("PRIMARY KEY"))).toBe(true);
 
-      // Test 5: List schemas
       const schemasResult = await listSchemasTool({});
       expect(schemasResult.error).toBeUndefined();
       expect(schemasResult.schemas).toBeDefined();
@@ -218,45 +230,27 @@ describe("Testcontainer Integration Tests", () => {
       expect(schemaNames).toContain("testschema");
       expect(schemaNames).toContain("public");
 
-      // Test 6: List schemas with system schemas
       const allSchemasResult = await listSchemasTool({
         includeSystemSchemas: true,
       });
-      expect(allSchemasResult.error).toBeUndefined();
-      expect(allSchemasResult.schemas).toBeDefined();
       expect(allSchemasResult.schemas!.length).toBeGreaterThan(
         schemasResult.schemas!.length
       );
+      expect(allSchemasResult.schemas!.map((s) => s.schema_name)).toContain("information_schema");
 
-      const allSchemaNames = allSchemasResult.schemas!.map(
-        (s) => s.schema_name
-      );
-      expect(allSchemaNames).toContain("information_schema");
-
-      // Test 7: List indexes
       const indexesResult = await listIndexesTool({ schema: "testschema" });
       expect(indexesResult.error).toBeUndefined();
       expect(indexesResult.indexes).toBeDefined();
       expect(indexesResult.indexes!.length).toBeGreaterThan(0);
+      expect(indexesResult.indexes!.map((i) => i.index_name).some((name) => name.includes("pkey"))).toBe(true);
 
-      const indexNames = indexesResult.indexes!.map((i) => i.index_name);
-      expect(indexNames.some((name) => name.includes("pkey"))).toBe(true);
-
-      // Test 8: List indexes for specific table
       const userIndexesResult = await listIndexesTool({
         schema: "testschema",
         table: "users",
       });
-      expect(userIndexesResult.error).toBeUndefined();
       expect(userIndexesResult.indexes).toBeDefined();
-      expect(userIndexesResult.indexes!.length).toBeGreaterThan(0);
+      expect(userIndexesResult.indexes!.filter((i) => i.table_name === "users").length).toBeGreaterThan(0);
 
-      const userIndexes = userIndexesResult.indexes!.filter(
-        (i) => i.table_name === "users"
-      );
-      expect(userIndexes.length).toBeGreaterThan(0);
-
-      // Test 9: Explain query
       const explainResult = await explainQueryTool({
         sql: "SELECT * FROM testschema.users WHERE id = 1",
       });
@@ -264,7 +258,6 @@ describe("Testcontainer Integration Tests", () => {
       expect(explainResult.plan).toBeDefined();
       expect(explainResult.plan!.length).toBeGreaterThan(0);
 
-      // Test 10: Explain query with analyze
       const explainAnalyzeResult = await explainQueryTool({
         sql: "SELECT COUNT(*) FROM testschema.users",
         analyze: true,
@@ -273,20 +266,15 @@ describe("Testcontainer Integration Tests", () => {
       expect(explainAnalyzeResult.error).toBeUndefined();
       expect(explainAnalyzeResult.plan).toBeDefined();
 
-      // Test 11: Verify stats from describe_table
       expect(describeResult.stats).toBeDefined();
       expect(describeResult.stats).not.toBeNull();
       expect(describeResult.stats!.table_name).toBe("users");
       expect(describeResult.stats!.row_count).toBeGreaterThanOrEqual(0);
       expect(describeResult.stats!.table_size_bytes).toBeGreaterThan(0);
 
-      // Test 13: List views
       const viewsResult = await listObjectsTool({ type: "views", schema: "testschema" });
       expect(viewsResult.error).toBeUndefined();
-      expect(viewsResult.objects).toBeDefined();
-
-      const viewNames = viewsResult.objects!.map((v) => v.object_name);
-      expect(viewNames).toContain("published_posts");
+      expect(viewsResult.objects!.map((v) => v.object_name)).toContain("published_posts");
 
       const publishedView = viewsResult.objects!.find(
         (v) => v.object_name === "published_posts"
@@ -294,7 +282,6 @@ describe("Testcontainer Integration Tests", () => {
       expect(publishedView).toBeDefined();
       expect(publishedView!.details).toContain("SELECT");
 
-      // Test 14: List functions
       const functionsResult = await listObjectsTool({ type: "functions", schema: "testschema" });
       expect(functionsResult.error).toBeUndefined();
       expect(functionsResult.objects).toBeDefined();
@@ -306,19 +293,14 @@ describe("Testcontainer Integration Tests", () => {
   });
 
   test("should handle complex queries and joins", async () => {
-    if (!dockerAvailable || !containerSetup) {
-      return; // Skip if no Docker
-    }
-
     const testTools = createTestTools(containerSetup.connectionInfo);
 
     try {
       const { queryTool, closeDb } = await testTools.getTools();
 
-      // Complex query with joins
       const joinQuery = await queryTool({
         sql: `
-          SELECT 
+          SELECT
             u.name as author,
             p.title,
             c.name as category,
@@ -335,13 +317,11 @@ describe("Testcontainer Integration Tests", () => {
       expect(joinQuery.rows).toBeDefined();
       expect(joinQuery.rows!.length).toBeGreaterThan(0);
 
-      // Check structure
       const firstRow = joinQuery.rows![0];
       expect(firstRow).toHaveProperty("author");
       expect(firstRow).toHaveProperty("title");
       expect(firstRow).toHaveProperty("category");
 
-      // Test view query
       const viewQuery = await queryTool({
         sql: "SELECT * FROM testschema.published_posts ORDER BY view_count DESC",
       });
@@ -357,19 +337,14 @@ describe("Testcontainer Integration Tests", () => {
   });
 
   test("should handle data manipulation operations", async () => {
-    if (!dockerAvailable || !containerSetup) {
-      return; // Skip if no Docker
-    }
-
     const testTools = createTestTools(containerSetup.connectionInfo);
 
     try {
       const { queryTool, closeDb } = await testTools.getTools();
 
-      // Insert new user
       const insertResult = await queryTool({
         sql: `
-          INSERT INTO testschema.users (name, email, age) 
+          INSERT INTO testschema.users (name, email, age)
           VALUES ('Test User', 'test@example.com', 28)
           RETURNING id, name, email
         `,
@@ -383,9 +358,7 @@ describe("Testcontainer Integration Tests", () => {
         expect(insertResult.rows[0].name).toBe("Test User");
         userId = insertResult.rows[0].id;
       } else {
-        // Some PostgreSQL setups might not return rows for INSERT...RETURNING
         expect(insertResult.rowCount).toBe(1);
-        // Get the user ID with a separate query
         const userQuery = await queryTool({
           sql: "SELECT id FROM testschema.users WHERE email = 'test@example.com'",
         });
@@ -393,20 +366,14 @@ describe("Testcontainer Integration Tests", () => {
         userId = userQuery.rows![0].id;
       }
 
-      // Update user using parameterized query
       const updateResult = await queryTool({
-        sql: `
-          UPDATE testschema.users 
-          SET age = 29 
-          WHERE id = $1
-        `,
+        sql: `UPDATE testschema.users SET age = 29 WHERE id = $1`,
         parameters: [userId],
       });
 
       expect(updateResult.error).toBeUndefined();
       expect(updateResult.rowCount).toBe(1);
 
-      // Verify update using parameterized query
       const selectResult = await queryTool({
         sql: `SELECT age FROM testschema.users WHERE id = $1`,
         parameters: [userId],
@@ -415,7 +382,6 @@ describe("Testcontainer Integration Tests", () => {
       expect(selectResult.error).toBeUndefined();
       expect(selectResult.rows![0].age).toBe(29);
 
-      // Clean up - delete test user using parameterized query
       const deleteResult = await queryTool({
         sql: `DELETE FROM testschema.users WHERE id = $1`,
         parameters: [userId],
@@ -431,17 +397,12 @@ describe("Testcontainer Integration Tests", () => {
   });
 
   test("should handle error cases properly", async () => {
-    if (!dockerAvailable || !containerSetup) {
-      return; // Skip if no Docker
-    }
-
     const testTools = createTestTools(containerSetup.connectionInfo);
 
     try {
       const { queryTool, describeTableTool, closeDb } =
         await testTools.getTools();
 
-      // Test invalid SQL
       const invalidQuery = await queryTool({
         sql: "INVALID SQL SYNTAX HERE",
       });
@@ -449,7 +410,6 @@ describe("Testcontainer Integration Tests", () => {
       expect(invalidQuery.error).toBeDefined();
       expect(typeof invalidQuery.error).toBe("string");
 
-      // Test non-existent table
       const nonExistentTable = await describeTableTool({
         schema: "testschema",
         table: "nonexistent_table",
@@ -459,10 +419,9 @@ describe("Testcontainer Integration Tests", () => {
       expect(nonExistentTable.columns).toBeDefined();
       expect(nonExistentTable.columns!.length).toBe(0);
 
-      // Test constraint violation
       const duplicateEmail = await queryTool({
         sql: `
-          INSERT INTO testschema.users (name, email, age) 
+          INSERT INTO testschema.users (name, email, age)
           VALUES ('Duplicate', 'john@example.com', 25)
         `,
       });
@@ -477,98 +436,65 @@ describe("Testcontainer Integration Tests", () => {
   });
 
   test("should enforce security restrictions properly", async () => {
-    if (!dockerAvailable || !containerSetup) {
-      return; // Skip if no Docker
-    }
-
-    // Create test tools with READ_ONLY mode enabled
-    const originalEnv = { ...process.env };
-
-    process.env.DB_HOST = containerSetup.connectionInfo.host;
-    process.env.DB_PORT = containerSetup.connectionInfo.port.toString();
-    process.env.DB_USER = containerSetup.connectionInfo.username;
-    process.env.DB_PASSWORD = containerSetup.connectionInfo.password;
-    process.env.DB_NAME = containerSetup.connectionInfo.database;
-    process.env.DB_SSL = "false";
-    process.env.READ_ONLY = "true"; // Enable read-only mode for security tests
-    process.env.NODE_ENV = "development";
-
-    // Clear module cache
-    delete require.cache[require.resolve("../../src/db")];
-    delete require.cache[require.resolve("../../src/tools/query")];
+    const testTools = createReadOnlyTestTools(containerSetup.connectionInfo);
 
     try {
-      const { queryTool } = await import("../../src/tools/query");
-      const { closeDb } = await import("../../src/db");
+      const { queryTool, closeDb } = await testTools.getTools();
 
-      // Test 1: SELECT queries should work in read-only mode
       const selectQuery = await queryTool({
         sql: "SELECT COUNT(*) as count FROM testschema.users",
       });
       expect(selectQuery.error).toBeUndefined();
       expect(selectQuery.rows).toBeDefined();
 
-      // Test 2: INSERT should be blocked in read-only mode
       const insertQuery = await queryTool({
         sql: `INSERT INTO testschema.users (name, email, age) VALUES ('Test', 'test@test.com', 25)`,
       });
       expect(insertQuery.error).toBeDefined();
       expect(insertQuery.error).toContain("read-only mode");
 
-      // Test 3: UPDATE should be blocked in read-only mode
       const updateQuery = await queryTool({
         sql: `UPDATE testschema.users SET age = 30 WHERE id = 1`,
       });
       expect(updateQuery.error).toBeDefined();
       expect(updateQuery.error).toContain("read-only mode");
 
-      // Test 4: DELETE should be blocked in read-only mode
       const deleteQuery = await queryTool({
         sql: `DELETE FROM testschema.users WHERE id = 1`,
       });
       expect(deleteQuery.error).toBeDefined();
       expect(deleteQuery.error).toContain("read-only mode");
 
-      // Test 5: Dangerous operations should always be blocked
       const dropQuery = await queryTool({
         sql: `DROP TABLE testschema.users`,
       });
       expect(dropQuery.error).toBeDefined();
       expect(dropQuery.error).toContain("not allowed");
 
-      // Test 6: CREATE should be blocked
       const createQuery = await queryTool({
         sql: `CREATE TABLE test_table (id INT)`,
       });
       expect(createQuery.error).toBeDefined();
       expect(createQuery.error).toContain("not allowed");
 
-      // Test 7: Row limit should be applied
       const largeScanQuery = await queryTool({
         sql: "SELECT * FROM testschema.users",
       });
       expect(largeScanQuery.error).toBeUndefined();
       expect(largeScanQuery.rows).toBeDefined();
-      // Check that LIMIT was applied (result should be reasonable size)
 
       await closeDb();
     } finally {
-      // Restore original environment
-      process.env = originalEnv;
+      testTools.cleanup();
     }
   });
 
   test("should prevent real SQL injection attempts", async () => {
-    if (!dockerAvailable || !containerSetup) {
-      return; // Skip if no Docker
-    }
-
     const testTools = createTestTools(containerSetup.connectionInfo);
 
     try {
       const { queryTool, closeDb } = await testTools.getTools();
 
-      // Test 1: SQL injection through string parameter
       const injectionResult1 = await queryTool({
         sql: "SELECT * FROM testschema.users WHERE name = $1",
         parameters: ["'; DROP TABLE testschema.users; --"],
@@ -576,26 +502,21 @@ describe("Testcontainer Integration Tests", () => {
       expect(injectionResult1.error).toBeUndefined();
       expect(injectionResult1.rows).toBeDefined();
 
-      // Verify table still exists
       const verifyResult1 = await queryTool({
         sql: "SELECT COUNT(*) as count FROM testschema.users",
       });
       expect(verifyResult1.error).toBeUndefined();
-      expect(Number(verifyResult1.rows![0].count)).toBeGreaterThanOrEqual(3); // Original data still there
+      expect(Number(verifyResult1.rows![0].count)).toBeGreaterThanOrEqual(3);
 
-      // Test 2: UNION-based SQL injection (should fail type conversion)
       const injectionResult2 = await queryTool({
         sql: "SELECT name FROM testschema.users WHERE id = $1",
         parameters: ["1 UNION SELECT email FROM testschema.users"],
       });
-      // This should fail because PostgreSQL correctly rejects the malicious string as invalid integer
       expect(injectionResult2.error).toBeDefined();
-      // Error message is sanitized in production mode
       expect(injectionResult2.error).toMatch(
         /(invalid input syntax for type integer|Database operation failed)/
       );
 
-      // Test 3: Comment-based injection
       const injectionResult3 = await queryTool({
         sql: "SELECT * FROM testschema.users WHERE name = $1",
         parameters: ["admin'/**/OR/**/1=1/**/--"],
@@ -603,14 +524,11 @@ describe("Testcontainer Integration Tests", () => {
       expect(injectionResult3.error).toBeUndefined();
       expect(injectionResult3.rows).toBeDefined();
 
-      // Test 4: Blind SQL injection attempt (should fail type conversion)
       const injectionResult4 = await queryTool({
         sql: "SELECT * FROM testschema.users WHERE id = $1",
         parameters: ["1' AND (SELECT COUNT(*) FROM testschema.users) > 0 --"],
       });
-      // This should fail because PostgreSQL correctly rejects the malicious string as invalid integer
       expect(injectionResult4.error).toBeDefined();
-      // Error message is sanitized in production mode
       expect(injectionResult4.error).toMatch(
         /(invalid input syntax for type integer|Database operation failed)/
       );
@@ -622,22 +540,17 @@ describe("Testcontainer Integration Tests", () => {
   });
 
   test("should enforce WHERE clause validation with real database", async () => {
-    if (!dockerAvailable || !containerSetup) {
-      return; // Skip if no Docker
-    }
-
     const testTools = createTestTools(containerSetup.connectionInfo);
 
     try {
       const { queryTool, closeDb } = await testTools.getTools();
 
-      // Test dangerous WHERE patterns that should be blocked
       const dangerousPatterns = [
         "WHERE 1=1",
         "WHERE TRUE",
         "WHERE '1'='1'",
         "WHERE 1",
-        "where 1=1", // case insensitive
+        "where 1=1",
       ];
 
       for (const pattern of dangerousPatterns) {
@@ -654,12 +567,11 @@ describe("Testcontainer Integration Tests", () => {
         expect(deleteResult.error).toContain("WHERE clause");
       }
 
-      // Verify no data was actually modified
       const checkResult = await queryTool({
         sql: "SELECT COUNT(*) as count FROM testschema.users WHERE age = 999",
       });
       expect(checkResult.error).toBeUndefined();
-      expect(checkResult.rows![0].count).toBe("0"); // No rows should have been updated
+      expect(checkResult.rows![0].count).toBe("0");
 
       await closeDb();
     } finally {
@@ -668,16 +580,11 @@ describe("Testcontainer Integration Tests", () => {
   });
 
   test("should validate comprehensive dangerous operations with real database", async () => {
-    if (!dockerAvailable || !containerSetup) {
-      return; // Skip if no Docker
-    }
-
     const testTools = createTestTools(containerSetup.connectionInfo);
 
     try {
       const { queryTool, closeDb } = await testTools.getTools();
 
-      // Test all dangerous operations
       const dangerousOps = [
         "ALTER TABLE testschema.users ADD COLUMN temp_col TEXT",
         "TRUNCATE testschema.users",
@@ -701,12 +608,11 @@ describe("Testcontainer Integration Tests", () => {
         expect(result.error).toContain("not allowed");
       }
 
-      // Verify database structure is unchanged
       const verifyResult = await queryTool({
         sql: "SELECT COUNT(*) as count FROM testschema.users",
       });
       expect(verifyResult.error).toBeUndefined();
-      expect(Number(verifyResult.rows![0].count)).toBeGreaterThanOrEqual(3); // Original data intact
+      expect(Number(verifyResult.rows![0].count)).toBeGreaterThanOrEqual(3);
 
       await closeDb();
     } finally {
@@ -715,41 +621,18 @@ describe("Testcontainer Integration Tests", () => {
   });
 
   test("should handle row limiting with large result sets", async () => {
-    if (!dockerAvailable || !containerSetup) {
-      return; // Skip if no Docker
-    }
-
-    // Set a small row limit for testing
-    const originalEnv = { ...process.env };
-
-    process.env.DB_HOST = containerSetup.connectionInfo.host;
-    process.env.DB_PORT = containerSetup.connectionInfo.port.toString();
-    process.env.DB_USER = containerSetup.connectionInfo.username;
-    process.env.DB_PASSWORD = containerSetup.connectionInfo.password;
-    process.env.DB_NAME = containerSetup.connectionInfo.database;
-    process.env.DB_SSL = "false";
-    process.env.READ_ONLY = "false";
-    process.env.ROW_LIMIT = "2"; // Very small limit for testing
-    process.env.NODE_ENV = "development";
-
-    // Clear module cache
-    delete require.cache[require.resolve("../../src/db")];
-    delete require.cache[require.resolve("../../src/tools/query")];
+    const testTools = createRowLimitTestTools(containerSetup.connectionInfo, "2");
 
     try {
-      const { queryTool } = await import("../../src/tools/query");
-      const { closeDb } = await import("../../src/db");
+      const { queryTool, closeDb } = await testTools.getTools();
 
-      // Query that would return 3 rows but should be limited to 2
       const result = await queryTool({
         sql: "SELECT * FROM testschema.users ORDER BY id",
       });
 
       expect(result.error).toBeUndefined();
       expect(result.rows).toBeDefined();
-      // Row limit should be applied automatically
 
-      // Query with explicit LIMIT should be preserved
       const limitedResult = await queryTool({
         sql: "SELECT * FROM testschema.users ORDER BY id LIMIT 1",
       });
@@ -760,13 +643,11 @@ describe("Testcontainer Integration Tests", () => {
 
       await closeDb();
     } finally {
-      // Restore original environment
-      process.env = originalEnv;
+      testTools.cleanup();
     }
   });
 
   test("should search objects across schemas", async () => {
-    if (!dockerAvailable || !containerSetup) return;
     const testTools = createTestTools(containerSetup.connectionInfo);
     try {
       const { searchObjectsTool, closeDb } = await testTools.getTools();
@@ -788,7 +669,6 @@ describe("Testcontainer Integration Tests", () => {
   });
 
   test("should get active connections", async () => {
-    if (!dockerAvailable || !containerSetup) return;
     const testTools = createTestTools(containerSetup.connectionInfo);
     try {
       const { getConnectionsTool, closeDb } = await testTools.getTools();
@@ -806,7 +686,6 @@ describe("Testcontainer Integration Tests", () => {
   });
 
   test("should diagnose database health", async () => {
-    if (!dockerAvailable || !containerSetup) return;
     const testTools = createTestTools(containerSetup.connectionInfo);
     try {
       const { diagnoseDatabaseTool, closeDb } = await testTools.getTools();
@@ -827,7 +706,6 @@ describe("Testcontainer Integration Tests", () => {
   });
 
   test("should get slow queries from pg_stat_statements", async () => {
-    if (!dockerAvailable || !containerSetup) return;
     const testTools = createTestTools(containerSetup.connectionInfo);
     try {
       const { getSlowQueriesTool, queryTool, closeDb } = await testTools.getTools();
@@ -849,7 +727,6 @@ describe("Testcontainer Integration Tests", () => {
   });
 
   test("should detect sequence near limit in diagnostics", async () => {
-    if (!dockerAvailable || !containerSetup) return;
     const testTools = createTestTools(containerSetup.connectionInfo);
     try {
       const { diagnoseDatabaseTool, closeDb } = await testTools.getTools();
@@ -869,16 +746,11 @@ describe("Testcontainer Integration Tests", () => {
   });
 
   test("should provide detailed error categorization", async () => {
-    if (!dockerAvailable || !containerSetup) {
-      return; // Skip if no Docker
-    }
-
     const testTools = createTestTools(containerSetup.connectionInfo);
 
     try {
       const { queryTool, closeDb } = await testTools.getTools();
 
-      // Test syntax error
       const syntaxResult = await queryTool({
         sql: "INVALID SQL SYNTAX HERE",
       });
@@ -886,7 +758,6 @@ describe("Testcontainer Integration Tests", () => {
       expect(syntaxResult.code).toBe("SYNTAX_ERROR");
       expect(syntaxResult.hint).toBeDefined();
 
-      // Test duplicate key error
       const duplicateResult = await queryTool({
         sql: `INSERT INTO testschema.users (name, email, age) VALUES ('Duplicate', 'john@example.com', 25)`,
       });
@@ -894,16 +765,14 @@ describe("Testcontainer Integration Tests", () => {
       expect(duplicateResult.code).toBe("DUPLICATE_KEY");
       expect(duplicateResult.hint).toBeDefined();
 
-      // Test foreign key violation (if we try to reference non-existent category)
       const fkResult = await queryTool({
-        sql: `INSERT INTO testschema.posts (user_id, title, content, category_id, published) 
+        sql: `INSERT INTO testschema.posts (user_id, title, content, category_id, published)
               VALUES (1, 'Test Post', 'Content', 99999, true)`,
       });
       expect(fkResult.error).toBeDefined();
       expect(fkResult.code).toBe("FOREIGN_KEY_VIOLATION");
       expect(fkResult.hint).toBeDefined();
 
-      // Test relation not found
       const relationResult = await queryTool({
         sql: "SELECT * FROM testschema.nonexistent_table",
       });
@@ -911,13 +780,70 @@ describe("Testcontainer Integration Tests", () => {
       expect(relationResult.code).toBe("RELATION_NOT_FOUND");
       expect(relationResult.hint).toBeDefined();
 
-      // Test column not found
       const columnResult = await queryTool({
         sql: "SELECT nonexistent_column FROM testschema.users",
       });
       expect(columnResult.error).toBeDefined();
       expect(columnResult.code).toBe("COLUMN_NOT_FOUND");
       expect(columnResult.hint).toBeDefined();
+
+      await closeDb();
+    } finally {
+      testTools.cleanup();
+    }
+  });
+
+  test("should verify database health check with real connection", async () => {
+    const testTools = createTestTools(containerSetup.connectionInfo);
+    try {
+      const { closeDb } = await testTools.getTools();
+      const { getDbManager } = await import("../../src/db");
+
+      const health = await getDbManager().healthCheck();
+      expect(health.healthy).toBe(true);
+      expect(health.error).toBeUndefined();
+
+      await closeDb();
+    } finally {
+      testTools.cleanup();
+    }
+  });
+
+  test("should reconnect after close with real database", async () => {
+    const testTools = createTestTools(containerSetup.connectionInfo);
+    try {
+      const { queryTool, closeDb } = await testTools.getTools();
+      const { getDbManager } = await import("../../src/db");
+
+      const result1 = await queryTool({ sql: "SELECT 1 as val" });
+      expect(result1.error).toBeUndefined();
+      expect(getDbManager().isConnected()).toBe(true);
+
+      await closeDb();
+      expect(getDbManager().isConnected()).toBe(false);
+
+      const result2 = await queryTool({ sql: "SELECT 2 as val" });
+      expect(result2.error).toBeUndefined();
+      expect(getDbManager().isConnected()).toBe(true);
+
+      await closeDb();
+    } finally {
+      testTools.cleanup();
+    }
+  });
+
+  test("should return correct config for container connection", async () => {
+    const testTools = createTestTools(containerSetup.connectionInfo);
+    try {
+      await testTools.getTools();
+      const { getDbManager, closeDb } = await import("../../src/db");
+
+      const config = getDbManager().getConfig();
+      expect(config.host).toBe(containerSetup.connectionInfo.host);
+      expect(config.port).toBe(containerSetup.connectionInfo.port);
+      expect(config.user).toBe(containerSetup.connectionInfo.username);
+      expect(config.database).toBe(containerSetup.connectionInfo.database);
+      expect(config.ssl).toBe(false);
 
       await closeDb();
     } finally {
