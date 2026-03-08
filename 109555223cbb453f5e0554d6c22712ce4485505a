@@ -1,0 +1,37 @@
+src/index.ts
+  ec6a4b0c5708d0ff 55
+tests/unit/package.test.ts
+  ec6a4b0c5708d0ff 62-63
+tests/integration/container.test.ts
+  ec6a4b0c5708d0ff 184-186,188,192,264-269
+src/tools/describe.ts
+  ec6a4b0c5708d0ff 22-38,41-42,49-51,61,63-64,80-117,119-121
+tests/helpers/test-db.ts
+  ec6a4b0c5708d0ff 76,79
+tests/unit/tools/describe.test.ts
+  ec6a4b0c5708d0ff 4-6,21-23,34-58,61,76,82,87,94,99,105,107,112,114,116-127,132,137,140,149,151,154,157-158,160-163,166-172,174,176,182-183,185-186,194,196,199,201,203,205,208
+tests/unit/tools/performance.test.ts
+  ec6a4b0c5708d0ff 13,33,35,42,44,51,53,60,62,69,71,78,80,89,91,99,101,108,110,117,119,133,137
+tests/integration/full-workflow.test.ts
+  ec6a4b0c5708d0ff 70-72
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.8",
+  "base_commit_sha": "109555223cbb453f5e0554d6c22712ce4485505a",
+  "prompts": {
+    "ec6a4b0c5708d0ff": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5e5a7bfb-b4bd-4cc1-a782-7fe0bdfa4265",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Avi <avishek.biswas.1997@gmail.com>",
+      "messages": [],
+      "total_additions": 236,
+      "total_deletions": 493,
+      "accepted_lines": 664,
+      "overriden_lines": 0
+    }
+  }
+}
