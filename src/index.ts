@@ -15,6 +15,7 @@ import {
   ListIndexesInputSchema,
   ExplainQueryInputSchema,
   SearchObjectsInputSchema,
+  GetConnectionsInputSchema,
   validateInput
 } from "./validation.js";
 import { queryTool } from "./tools/query.js";
@@ -24,6 +25,7 @@ import { listSchemasTool } from "./tools/schemas.js";
 import { listIndexesTool } from "./tools/indexes.js";
 import { explainQueryTool } from "./tools/performance.js";
 import { searchObjectsTool } from "./tools/search.js";
+import { getConnectionsTool } from "./tools/connections.js";
 import { closeDb } from "./db.js";
 
 // Helper to extract inline schema from zodToJsonSchema output
@@ -81,6 +83,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         name: "search_objects",
         description: "Find tables, columns, functions, views by name pattern across schemas",
         inputSchema: getInlineSchema(SearchObjectsInputSchema, "SearchObjectsInput"),
+      },
+      {
+        name: "get_connections",
+        description: "Show active database connections, utilization, and idle-in-transaction warnings",
+        inputSchema: getInlineSchema(GetConnectionsInputSchema, "GetConnectionsInput"),
       },
     ],
   };
@@ -183,6 +190,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           return createErrorResponse(`Input validation failed: ${validation.error}`);
         }
         const result = await searchObjectsTool(validation.data);
+        return createSafeToolResponse(result);
+      }
+
+      case "get_connections": {
+        const validation = validateInput(GetConnectionsInputSchema, args);
+        if (!validation.success) {
+          return createErrorResponse(`Input validation failed: ${validation.error}`);
+        }
+        const result = await getConnectionsTool(validation.data);
         return createSafeToolResponse(result);
       }
 

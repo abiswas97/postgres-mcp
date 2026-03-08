@@ -69,6 +69,13 @@ export const SearchObjectsInputSchema = z.object({
 
 export type SearchObjectsInput = z.infer<typeof SearchObjectsInputSchema>;
 
+export const GetConnectionsInputSchema = z.object({
+  include_queries: z.boolean().optional(),
+  group_by: z.enum(['state', 'user', 'application', 'client']).optional()
+});
+
+export type GetConnectionsInput = z.infer<typeof GetConnectionsInputSchema>;
+
 export function validateInput<T>(schema: z.ZodSchema<T>, input: unknown): { success: true; data: T } | { success: false; error: string } {
   try {
     const data = schema.parse(input);
