@@ -67,3 +67,6 @@ FROM testschema.posts p
 JOIN testschema.users u ON p.user_id = u.id
 LEFT JOIN testschema.categories c ON p.category_id = c.id
 WHERE p.published = TRUE;
+
+CREATE SEQUENCE testschema.test_sequence START 1 MAXVALUE 100;
+SELECT setval('testschema.test_sequence', 80)

@@ -44,6 +44,11 @@ export async function setupTestContainer(): Promise<{
     .withDatabase('testdb')
     .withUsername('testuser')
     .withPassword('testpass')
+    .withCommand([
+      'postgres',
+      '-c', 'shared_preload_libraries=pg_stat_statements',
+      '-c', 'pg_stat_statements.track=all'
+    ])
     .start();
 
   const connectionInfo = {
@@ -74,6 +79,7 @@ export async function setupTestContainer(): Promise<{
   // Set up schema and data
   await setupTestSchema(db);
   await loadSampleData(db);
+  await sql.raw('CREATE EXTENSION IF NOT EXISTS pg_stat_statements').execute(db);
 
   return { container, db, connectionInfo };
 }

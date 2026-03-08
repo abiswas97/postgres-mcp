@@ -28,6 +28,10 @@ function createTestTools(connectionInfo: any) {
   delete require.cache[require.resolve("../../src/tools/schemas")];
   delete require.cache[require.resolve("../../src/tools/indexes")];
   delete require.cache[require.resolve("../../src/tools/performance")];
+  delete require.cache[require.resolve("../../src/tools/search")];
+  delete require.cache[require.resolve("../../src/tools/connections")];
+  delete require.cache[require.resolve("../../src/tools/diagnostics")];
+  delete require.cache[require.resolve("../../src/tools/slow-queries")];
 
   const cleanup = () => {
     process.env = originalEnv;
@@ -46,6 +50,10 @@ function createTestTools(connectionInfo: any) {
       const { explainQueryTool } = await import(
         "../../src/tools/performance"
       );
+      const { searchObjectsTool } = await import("../../src/tools/search");
+      const { getConnectionsTool } = await import("../../src/tools/connections");
+      const { diagnoseDatabaseTool } = await import("../../src/tools/diagnostics");
+      const { getSlowQueriesTool } = await import("../../src/tools/slow-queries");
       const { closeDb } = await import("../../src/db");
       return {
         queryTool,
@@ -54,6 +62,10 @@ function createTestTools(connectionInfo: any) {
         listSchemasTool,
         listIndexesTool,
         explainQueryTool,
+        searchObjectsTool,
+        getConnectionsTool,
+        diagnoseDatabaseTool,
+        getSlowQueriesTool,
         closeDb,
       };
     },
@@ -751,6 +763,109 @@ describe("Testcontainer Integration Tests", () => {
       // Restore original environment
       process.env = originalEnv;
     }
+  });
+
+  test("should search objects across schemas", async () => {
+    if (!dockerAvailable || !containerSetup) return;
+    const testTools = createTestTools(containerSetup.connectionInfo);
+    try {
+      const { searchObjectsTool, closeDb } = await testTools.getTools();
+
+      const result = await searchObjectsTool({ pattern: 'user' });
+      expect(result.error).toBeUndefined();
+      expect(result.results).toBeDefined();
+      expect(result.results!.length).toBeGreaterThan(0);
+
+      const types = [...new Set(result.results!.map((r: any) => r.object_type))];
+      expect(types.length).toBeGreaterThan(1);
+
+      const tableOnly = await searchObjectsTool({ pattern: 'user', object_types: ['table'] });
+      expect(tableOnly.results).toBeDefined();
+      expect(tableOnly.results!.every((r: any) => r.object_type === 'table')).toBe(true);
+
+      await closeDb();
+    } finally { testTools.cleanup(); }
+  });
+
+  test("should get active connections", async () => {
+    if (!dockerAvailable || !containerSetup) return;
+    const testTools = createTestTools(containerSetup.connectionInfo);
+    try {
+      const { getConnectionsTool, closeDb } = await testTools.getTools();
+
+      const result = await getConnectionsTool({ include_queries: true });
+      expect(result.error).toBeUndefined();
+      expect(result.summary).toBeDefined();
+      expect(result.summary!.total).toBeGreaterThan(0);
+      expect(result.summary!.max_connections).toBeGreaterThan(0);
+      expect(result.connections).toBeDefined();
+      expect(result.timestamp).toBeDefined();
+
+      await closeDb();
+    } finally { testTools.cleanup(); }
+  });
+
+  test("should diagnose database health", async () => {
+    if (!dockerAvailable || !containerSetup) return;
+    const testTools = createTestTools(containerSetup.connectionInfo);
+    try {
+      const { diagnoseDatabaseTool, closeDb } = await testTools.getTools();
+
+      const result = await diagnoseDatabaseTool({});
+      expect(result.error).toBeUndefined();
+      expect(result.status).toBeDefined();
+      expect(['healthy', 'warning', 'critical']).toContain(result.status);
+      expect(result.checks).toBeDefined();
+      expect(result.checks!.cache_hit_ratio).toBeDefined();
+      expect(result.checks!.connection_saturation).toBeDefined();
+      expect(result.checks!.database_size).toBeDefined();
+      expect(result.summary).toBeDefined();
+      expect(result.timestamp).toBeDefined();
+
+      await closeDb();
+    } finally { testTools.cleanup(); }
+  });
+
+  test("should get slow queries from pg_stat_statements", async () => {
+    if (!dockerAvailable || !containerSetup) return;
+    const testTools = createTestTools(containerSetup.connectionInfo);
+    try {
+      const { getSlowQueriesTool, queryTool, closeDb } = await testTools.getTools();
+
+      for (let i = 0; i < 10; i++) {
+        await queryTool({ sql: 'SELECT * FROM testschema.users' });
+      }
+
+      const result = await getSlowQueriesTool({});
+      expect(result.extension_installed).toBe(true);
+      expect(result.queries).toBeDefined();
+      expect(result.queries!.length).toBeGreaterThan(0);
+
+      const filtered = await getSlowQueriesTool({ min_calls: 5, sort_by: 'calls' });
+      expect(filtered.queries).toBeDefined();
+
+      await closeDb();
+    } finally { testTools.cleanup(); }
+  });
+
+  test("should detect sequence near limit in diagnostics", async () => {
+    if (!dockerAvailable || !containerSetup) return;
+    const testTools = createTestTools(containerSetup.connectionInfo);
+    try {
+      const { diagnoseDatabaseTool, closeDb } = await testTools.getTools();
+
+      const result = await diagnoseDatabaseTool({});
+      if (result.checks?.sequence_health?.sequences_near_limit) {
+        const testSeq = result.checks.sequence_health.sequences_near_limit.find(
+          (s: any) => s.name === 'test_sequence'
+        );
+        if (testSeq) {
+          expect(Number(testSeq.pct_used)).toBeGreaterThan(75);
+        }
+      }
+
+      await closeDb();
+    } finally { testTools.cleanup(); }
   });
 
   test("should provide detailed error categorization", async () => {
