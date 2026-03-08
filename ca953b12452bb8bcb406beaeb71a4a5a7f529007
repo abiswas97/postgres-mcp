@@ -1,0 +1,31 @@
+tests/integration/container.test.ts
+  584ba5741e463db4 473,479,609
+tests/unit/tools/query-security.test.ts
+  584ba5741e463db4 69,82,98,110,121,132
+tests/unit/tools/query-readonly.test.ts
+  584ba5741e463db4 159,301
+src/tools/query.ts
+  584ba5741e463db4 12-16,27-32,56-57,61,66-74
+tests/integration/pagination.test.ts
+  584ba5741e463db4 424
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.8",
+  "base_commit_sha": "ca953b12452bb8bcb406beaeb71a4a5a7f529007",
+  "prompts": {
+    "584ba5741e463db4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d81dc5e8-f3ce-4ae7-9729-2c7bae5a2683",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "Avi <avishek.biswas.1997@gmail.com>",
+      "messages": [],
+      "total_additions": 43,
+      "total_deletions": 26,
+      "accepted_lines": 40,
+      "overriden_lines": 0
+    }
+  }
+}
