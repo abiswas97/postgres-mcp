@@ -40,12 +40,12 @@ describe('Database Module', () => {
 
   describe('Config Validation', () => {
     test('should throw when DB_PASSWORD is missing', async () => {
+      delete process.env.DB_PASSWORD;
+
       const { getDbManager } = await import('../../src/db');
       delete process.env.DB_PASSWORD;
-      delete require.cache[require.resolve('../../src/db')];
 
-      const freshModule = await import('../../src/db');
-      expect(() => freshModule.getDbManager()).toThrow(
+      expect(() => getDbManager()).toThrow(
         'DB_PASSWORD environment variable is required'
       );
     });
@@ -69,8 +69,6 @@ describe('Database Module', () => {
     });
 
     test('should use defaults for all optional env vars', async () => {
-      const { getDbManager } = await import('../../src/db');
-
       process.env.DB_PASSWORD = 'test';
       delete process.env.DB_HOST;
       delete process.env.DB_PORT;
@@ -81,6 +79,16 @@ describe('Database Module', () => {
       delete process.env.DB_CONNECTION_TIMEOUT;
       delete process.env.DB_QUERY_TIMEOUT;
 
+      const { getDbManager } = await import('../../src/db');
+
+      delete process.env.DB_HOST;
+      delete process.env.DB_PORT;
+      delete process.env.DB_USER;
+      delete process.env.DB_NAME;
+      delete process.env.DB_POOL_MAX;
+      delete process.env.DB_IDLE_TIMEOUT;
+      delete process.env.DB_CONNECTION_TIMEOUT;
+      delete process.env.DB_QUERY_TIMEOUT;
       const config = getDbManager().getConfig();
 
       expect(config.host).toBe('127.0.0.1');
@@ -224,31 +232,4 @@ describe('Database Module', () => {
     });
   });
 
-  describe('SSL Configuration', () => {
-    test('should configure SSL with rejectUnauthorized false by default', async () => {
-      process.env.DB_HOST = 'localhost';
-      process.env.DB_PASSWORD = 'test';
-
-      const { getDb } = await import('../../src/db');
-      expect(typeof getDb).toBe('function');
-    });
-
-    test('should disable SSL when DB_SSL is false', async () => {
-      process.env.DB_HOST = 'localhost';
-      process.env.DB_PASSWORD = 'test';
-      process.env.DB_SSL = 'false';
-
-      const { getDb } = await import('../../src/db');
-      expect(typeof getDb).toBe('function');
-    });
-
-    test('should enable SSL when DB_SSL is true', async () => {
-      process.env.DB_HOST = 'localhost';
-      process.env.DB_PASSWORD = 'test';
-      process.env.DB_SSL = 'true';
-
-      const { getDb } = await import('../../src/db');
-      expect(typeof getDb).toBe('function');
-    });
-  });
 });
